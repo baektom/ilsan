@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 
 export type AuthMode = "login" | "signup";
@@ -10,6 +10,8 @@ type AuthModalProps = {
   onClose: () => void;
   onAuthSuccess?: () => void | Promise<void>;
 };
+
+const HANGUL_REGEX = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
 
 function normalizeLoginId(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9_]/g, "");
@@ -102,10 +104,45 @@ export default function AuthModal({
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  // 한글로 입력을 시도했는지 여부 (회원가입 아이디 / 로그인 아이디 각각)
+  const [loginIdHasKorean, setLoginIdHasKorean] = useState(false);
+  const [identifierHasKorean, setIdentifierHasKorean] = useState(false);
+
+  // 회원가입 아이디 중복 실시간 확인
+  const [loginIdStatus, setLoginIdStatus] = useState<
+    "idle" | "checking" | "duplicate" | "available"
+  >("idle");
+
   const clearMessages = () => {
     setErrorMessage("");
     setSuccessMessage("");
   };
+
+  useEffect(() => {
+    if (authMode !== "signup") {
+      setLoginIdStatus("idle");
+      return;
+    }
+
+    const cleanLoginId = normalizeLoginId(loginId.trim());
+
+    if (cleanLoginId.length < 4) {
+      setLoginIdStatus("idle");
+      return;
+    }
+
+    setLoginIdStatus("checking");
+
+    const timerId = window.setTimeout(async () => {
+      const { data } = await supabase.rpc("get_email_by_login_id", {
+        input_login_id: cleanLoginId,
+      });
+
+      setLoginIdStatus(data ? "duplicate" : "available");
+    }, 500);
+
+    return () => window.clearTimeout(timerId);
+  }, [loginId, authMode, supabase]);
 
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -121,6 +158,14 @@ export default function AuthModal({
       if (cleanName.length < 2) {
         setLoading(false);
         setErrorMessage("이름은 2글자 이상 입력해주세요.");
+        return;
+      }
+
+      if (loginIdHasKorean) {
+        setLoading(false);
+        setErrorMessage(
+          "로그인 아이디에는 한글을 사용할 수 없습니다. 영문으로 입력해주세요."
+        );
         return;
       }
 
@@ -151,6 +196,12 @@ export default function AuthModal({
       if (password !== confirmPassword) {
         setLoading(false);
         setErrorMessage("비밀번호와 비밀번호 확인이 서로 다릅니다.");
+        return;
+      }
+
+      if (loginIdStatus === "duplicate") {
+        setLoading(false);
+        setErrorMessage("이미 사용 중인 로그인 아이디입니다.");
         return;
       }
 
@@ -197,6 +248,14 @@ export default function AuthModal({
       setConfirmPassword("");
       setShowPassword(false);
       setShowConfirmPassword(false);
+      return;
+    }
+
+    if (identifierHasKorean) {
+      setLoading(false);
+      setErrorMessage(
+        "로그인 아이디에는 한글을 사용할 수 없습니다. 영문으로 입력해주세요."
+      );
       return;
     }
 
@@ -329,15 +388,43 @@ export default function AuthModal({
                   type="text"
                   required
                   value={loginId}
-                  onChange={(event) =>
-                    setLoginId(normalizeLoginId(event.target.value))
-                  }
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    setLoginIdHasKorean(HANGUL_REGEX.test(raw));
+                    setLoginId(normalizeLoginId(raw));
+                  }}
                   placeholder="예: moadream_user"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className={`w-full rounded-xl border px-4 py-3 outline-none transition focus:ring-2 ${
+                    loginIdHasKorean
+                      ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                      : "border-gray-300 focus:border-blue-500 focus:ring-blue-100"
+                  }`}
                 />
                 <p className="mt-2 text-xs text-gray-400">
                   4~20글자, 영문 소문자/숫자/밑줄(_)만 사용할 수 있습니다.
                 </p>
+
+                {loginIdHasKorean && (
+                  <p className="mt-1 text-xs font-semibold text-red-500">
+                    한글은 사용할 수 없습니다. 영문으로 입력해주세요.
+                  </p>
+                )}
+
+                {!loginIdHasKorean && loginIdStatus === "checking" && (
+                  <p className="mt-1 text-xs text-gray-400">
+                    아이디 확인 중...
+                  </p>
+                )}
+                {!loginIdHasKorean && loginIdStatus === "duplicate" && (
+                  <p className="mt-1 text-xs font-semibold text-red-500">
+                    중복된 아이디입니다.
+                  </p>
+                )}
+                {!loginIdHasKorean && loginIdStatus === "available" && (
+                  <p className="mt-1 text-xs font-semibold text-green-600">
+                    사용 가능한 아이디입니다.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -365,12 +452,24 @@ export default function AuthModal({
                 type="text"
                 required
                 value={loginIdentifier}
-                onChange={(event) =>
-                  setLoginIdentifier(normalizeLoginId(event.target.value))
-                }
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  setIdentifierHasKorean(HANGUL_REGEX.test(raw));
+                  setLoginIdentifier(normalizeLoginId(raw));
+                }}
                 placeholder="로그인 아이디를 입력하세요"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className={`w-full rounded-xl border px-4 py-3 outline-none transition focus:ring-2 ${
+                  identifierHasKorean
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                    : "border-gray-300 focus:border-blue-500 focus:ring-blue-100"
+                }`}
               />
+
+              {identifierHasKorean && (
+                <p className="mt-1 text-xs font-semibold text-red-500">
+                  한글은 사용할 수 없습니다. 영문으로 입력해주세요.
+                </p>
+              )}
             </div>
           )}
 
@@ -453,6 +552,30 @@ export default function AuthModal({
                 ? "로그인하기"
                 : "회원가입하기"}
           </button>
+
+          {authMode === "login" && (
+            <div className="flex items-center justify-center gap-3 text-sm text-gray-500">
+              <button
+                type="button"
+                onClick={() =>
+                  alert("다음 단계에서 아이디 찾기 기능을 연결할 예정입니다.")
+                }
+                className="hover:text-gray-700 hover:underline"
+              >
+                아이디 찾기
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                type="button"
+                onClick={() =>
+                  alert("다음 단계에서 비밀번호 찾기 기능을 연결할 예정입니다.")
+                }
+                className="hover:text-gray-700 hover:underline"
+              >
+                비밀번호 찾기
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

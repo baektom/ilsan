@@ -380,7 +380,8 @@ export default function HostPage() {
               />
 
               <button
-                type="submit"
+                type={profile ? "submit" : "button"}
+                onClick={!profile ? () => openAuthModal("login") : undefined}
                 className="w-full rounded-xl bg-purple-600 px-5 py-3 font-bold text-white hover:bg-purple-700"
               >
                 {profile ? "테스트 등록하기" : "로그인 후 등록하기"}

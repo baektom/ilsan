@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "../../../lib/supabase/client";
+import AuthModal, { AuthMode } from "../../components/AuthModal";
 
-// TODO: 다음 단계에서 실제 Supabase profiles 테이블 조회로 교체
 type Profile = {
-  name: string;
-  loginId: string;
+  id: string;
   email: string;
+  name: string | null;
+  login_id: string | null;
+  role: "tester" | "host" | null;
 };
 
 type TestStatus = "모집중" | "검토중" | "마감";
@@ -32,12 +35,7 @@ type Applicant = {
   status: ApplicantStatus;
 };
 
-const dummyProfile: Profile = {
-  name: "김호스트",
-  loginId: "host_kim",
-  email: "host.kim@example.com",
-};
-
+// TODO: 테스트 등록/신청자 기능 연동되면 실제 Supabase 조회로 교체
 const dummyTests: MyTest[] = [
   {
     id: 1,
@@ -90,6 +88,12 @@ const applicantStatusStyle: Record<ApplicantStatus, string> = {
 
 export default function HostMyPage() {
   const router = useRouter();
+  const [supabase] = useState(() => createClient());
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
 
   const [tests] = useState<MyTest[]>(dummyTests);
   const [applicants, setApplicants] = useState<Applicant[]>(dummyApplicants);
@@ -99,6 +103,46 @@ export default function HostMyPage() {
   const [applicantFilter, setApplicantFilter] = useState<
     "전체" | ApplicantStatus
   >("전체");
+
+  const loadProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, name, login_id, role")
+      .eq("id", user.id)
+      .single();
+
+    if (data) {
+      setProfile(data as Profile);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openAuthModal = (mode: AuthMode) => {
+    setAuthInitialMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
+    router.push("/host");
+  };
 
   const updateApplicantStatus = (id: number, status: ApplicantStatus) => {
     setApplicants((prev) =>
@@ -115,6 +159,36 @@ export default function HostMyPage() {
   });
 
   const selectedTest = tests.find((test) => test.id === selectedTestId);
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#fbf9ff]">
+        <p className="text-gray-500">마이페이지를 불러오는 중...</p>
+      </main>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#fbf9ff] px-6 text-center">
+        <p className="text-lg font-bold">로그인이 필요한 페이지예요.</p>
+        <button
+          onClick={() => openAuthModal("login")}
+          className="rounded-2xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-700"
+        >
+          로그인하기
+        </button>
+
+        {authModalOpen && (
+          <AuthModal
+            initialMode={authInitialMode}
+            onClose={() => setAuthModalOpen(false)}
+            onAuthSuccess={loadProfile}
+          />
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#fbf9ff] text-gray-900">
@@ -144,26 +218,38 @@ export default function HostMyPage() {
           내 정보와 테스트를 관리해요
         </h1>
 
-        {/* 1. 프로필 영역 */}
+        {/* 1. 프로필 영역 — Supabase profiles 테이블에서 실제 조회 */}
         <div className="mb-8 rounded-[32px] bg-white p-8 shadow-sm ring-1 ring-purple-100">
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
             <div>
               <p className="text-sm text-purple-600">호스트 계정</p>
-              <h2 className="mt-1 text-2xl font-black">{dummyProfile.name}님</h2>
-              <p className="mt-2 text-sm text-gray-500">
-                @{dummyProfile.loginId}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">{dummyProfile.email}</p>
+              <h2 className="mt-1 text-2xl font-black">
+                {profile.name ?? "이름 미설정"}님
+              </h2>
+              {profile.login_id && (
+                <p className="mt-2 text-sm text-gray-500">
+                  @{profile.login_id}
+                </p>
+              )}
+              <p className="mt-1 text-sm text-gray-500">{profile.email}</p>
             </div>
 
-            <button
-              onClick={() =>
-                alert("다음 단계에서 Supabase 프로필 수정 기능을 연결할 예정입니다.")
-              }
-              className="h-fit rounded-2xl border border-purple-200 bg-white px-5 py-3 font-bold text-purple-700 hover:bg-purple-50"
-            >
-              프로필 수정
-            </button>
+            <div className="flex h-fit gap-2">
+              <button
+                onClick={() =>
+                  alert("다음 단계에서 Supabase 프로필 수정 기능을 연결할 예정입니다.")
+                }
+                className="rounded-2xl border border-purple-200 bg-white px-5 py-3 font-bold text-purple-700 hover:bg-purple-50"
+              >
+                프로필 수정
+              </button>
+              <button
+                onClick={handleLogout}
+                className="rounded-2xl border border-gray-200 bg-white px-5 py-3 font-bold text-gray-600 hover:bg-gray-50"
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
         </div>
 

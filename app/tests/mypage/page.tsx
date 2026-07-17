@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "../../../lib/supabase/client";
+import AuthModal, { AuthMode } from "../../components/AuthModal";
 
-// TODO: 다음 단계에서 실제 Supabase profiles 테이블 조회로 교체
 type Profile = {
-  name: string;
-  loginId: string;
+  id: string;
   email: string;
+  name: string | null;
+  login_id: string | null;
+  role: "tester" | "host" | null;
 };
 
 type ApplicationStatus = "대기중" | "승인" | "거절";
@@ -29,12 +32,7 @@ type CompletedTest = {
   reviewed: boolean;
 };
 
-const dummyProfile: Profile = {
-  name: "이테스터",
-  loginId: "tester_lee",
-  email: "tester.lee@example.com",
-};
-
+// TODO: 테스트 신청 기능 연동되면 실제 Supabase 조회로 교체
 const dummyAppliedTests: AppliedTest[] = [
   {
     id: 1,
@@ -86,6 +84,12 @@ const applicationStatusStyle: Record<ApplicationStatus, string> = {
 
 export default function TesterMyPage() {
   const router = useRouter();
+  const [supabase] = useState(() => createClient());
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
 
   const [appliedTests] = useState<AppliedTest[]>(dummyAppliedTests);
   const [completedTests] = useState<CompletedTest[]>(dummyCompletedTests);
@@ -93,9 +97,79 @@ export default function TesterMyPage() {
     "전체"
   );
 
+  const loadProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, name, login_id, role")
+      .eq("id", user.id)
+      .single();
+
+    if (data) {
+      setProfile(data as Profile);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openAuthModal = (mode: AuthMode) => {
+    setAuthInitialMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
+    router.push("/tests");
+  };
+
   const visibleAppliedTests = appliedTests.filter((test) =>
     statusFilter === "전체" ? true : test.status === statusFilter
   );
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f8fbff]">
+        <p className="text-gray-500">마이페이지를 불러오는 중...</p>
+      </main>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f8fbff] px-6 text-center">
+        <p className="text-lg font-bold">로그인이 필요한 페이지예요.</p>
+        <button
+          onClick={() => openAuthModal("login")}
+          className="rounded-2xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700"
+        >
+          로그인하기
+        </button>
+
+        {authModalOpen && (
+          <AuthModal
+            initialMode={authInitialMode}
+            onClose={() => setAuthModalOpen(false)}
+            onAuthSuccess={loadProfile}
+          />
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#f8fbff] text-gray-900">
@@ -125,26 +199,38 @@ export default function TesterMyPage() {
           내 신청 현황을 확인해요
         </h1>
 
-        {/* 1. 프로필 영역 */}
+        {/* 1. 프로필 영역 — Supabase profiles 테이블에서 실제 조회 */}
         <div className="mb-8 rounded-[32px] bg-white p-8 shadow-sm ring-1 ring-blue-100">
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
             <div>
               <p className="text-sm text-blue-600">테스터 계정</p>
-              <h2 className="mt-1 text-2xl font-black">{dummyProfile.name}님</h2>
-              <p className="mt-2 text-sm text-gray-500">
-                @{dummyProfile.loginId}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">{dummyProfile.email}</p>
+              <h2 className="mt-1 text-2xl font-black">
+                {profile.name ?? "이름 미설정"}님
+              </h2>
+              {profile.login_id && (
+                <p className="mt-2 text-sm text-gray-500">
+                  @{profile.login_id}
+                </p>
+              )}
+              <p className="mt-1 text-sm text-gray-500">{profile.email}</p>
             </div>
 
-            <button
-              onClick={() =>
-                alert("다음 단계에서 Supabase 프로필 수정 기능을 연결할 예정입니다.")
-              }
-              className="h-fit rounded-2xl border border-blue-200 bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50"
-            >
-              프로필 수정
-            </button>
+            <div className="flex h-fit gap-2">
+              <button
+                onClick={() =>
+                  alert("다음 단계에서 Supabase 프로필 수정 기능을 연결할 예정입니다.")
+                }
+                className="rounded-2xl border border-blue-200 bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50"
+              >
+                프로필 수정
+              </button>
+              <button
+                onClick={handleLogout}
+                className="rounded-2xl border border-gray-200 bg-white px-5 py-3 font-bold text-gray-600 hover:bg-gray-50"
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
         </div>
 

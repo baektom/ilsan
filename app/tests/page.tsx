@@ -225,7 +225,7 @@ export default function TesterPage() {
             onClick={() => router.push("/tests")}
             className="text-2xl font-black tracking-tight text-blue-600"
           >
-            모아드림 게스트
+            모아드림 테스트
           </button>
 
           <div className="flex items-center gap-2">

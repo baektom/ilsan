@@ -144,7 +144,7 @@ export default function HostPage() {
       <header className="sticky top-0 z-30 border-b border-purple-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/host")}
             className="text-2xl font-black tracking-tight text-purple-600"
           >
             모아드림 호스트

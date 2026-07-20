@@ -222,10 +222,10 @@ export default function TesterPage() {
       <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/tests")}
             className="text-2xl font-black tracking-tight text-blue-600"
           >
-            모아드림
+            모아드림 게스트
           </button>
 
           <div className="flex items-center gap-2">

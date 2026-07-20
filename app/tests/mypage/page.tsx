@@ -179,7 +179,7 @@ export default function TesterMyPage() {
             onClick={() => router.push("/tests")}
             className="text-2xl font-black tracking-tight text-blue-600"
           >
-            모아드림
+            모아드림 테스트
           </button>
 
           <button

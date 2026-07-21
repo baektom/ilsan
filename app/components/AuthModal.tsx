@@ -119,30 +119,28 @@ export default function AuthModal({
   };
 
   useEffect(() => {
-    if (authMode !== "signup") {
-      setLoginIdStatus("idle");
-      return;
-    }
-
     const cleanLoginId = normalizeLoginId(loginId.trim());
-
-    if (cleanLoginId.length < 4) {
-      setLoginIdStatus("idle");
-      return;
-    }
-
-    setLoginIdStatus("checking");
+    const shouldCheck =
+      authMode === "signup" &&
+      !loginIdHasKorean &&
+      cleanLoginId.length >= 4;
 
     const timerId = window.setTimeout(async () => {
+      if (!shouldCheck) {
+        setLoginIdStatus("idle");
+        return;
+      }
+
+      setLoginIdStatus("checking");
       const { data } = await supabase.rpc("get_email_by_login_id", {
         input_login_id: cleanLoginId,
       });
 
       setLoginIdStatus(data ? "duplicate" : "available");
-    }, 500);
+    }, shouldCheck ? 500 : 0);
 
     return () => window.clearTimeout(timerId);
-  }, [loginId, authMode, supabase]);
+  }, [loginId, loginIdHasKorean, authMode, supabase]);
 
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -301,12 +299,12 @@ export default function AuthModal({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center px-5">
       <button
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 z-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
         aria-label="로그인창 닫기 배경"
       />
 
-      <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-8 shadow-2xl">
+      <div className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-8 shadow-2xl">
         <button
           onClick={onClose}
           className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-bold hover:bg-gray-200"

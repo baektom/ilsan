@@ -1,90 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
+import {
+  getApplicationsForHostTests,
+  updateApplicationStatus,
+} from "../../../lib/supabase/applications";
+import { getCurrentProfile, logout } from "../../../lib/supabase/profiles";
+import { getMyTests } from "../../../lib/supabase/tests";
+import type {
+  ApplicationRow,
+  ApplicationStatus,
+  Profile,
+  TestRow,
+  TestStatus,
+} from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
-
-type Profile = {
-  id: string;
-  email: string;
-  name: string | null;
-  login_id: string | null;
-  role: "tester" | "host" | null;
-};
-
-type TestStatus = "모집중" | "검토중" | "마감";
-
-type MyTest = {
-  id: number;
-  title: string;
-  category: string;
-  status: TestStatus;
-  applicants: number;
-  target: number;
-  reward: string;
-};
-
-type ApplicantStatus = "대기중" | "승인" | "거절";
-
-type Applicant = {
-  id: number;
-  testId: number;
-  name: string;
-  appliedAt: string;
-  status: ApplicantStatus;
-};
-
-// TODO: 테스트 등록/신청자 기능 연동되면 실제 Supabase 조회로 교체
-const dummyTests: MyTest[] = [
-  {
-    id: 1,
-    title: "신규 수분크림 7일 사용 테스트",
-    category: "화장품",
-    status: "모집중",
-    applicants: 18,
-    target: 30,
-    reward: "제품 제공 + 10,000원",
-  },
-  {
-    id: 2,
-    title: "모바일 퍼즐게임 베타 플레이 테스트",
-    category: "게임",
-    status: "검토중",
-    applicants: 42,
-    target: 50,
-    reward: "20,000원",
-  },
-  {
-    id: 3,
-    title: "친환경 세제 시제품 체험단",
-    category: "시제품",
-    status: "마감",
-    applicants: 25,
-    target: 25,
-    reward: "제품 제공",
-  },
-];
-
-const dummyApplicants: Applicant[] = [
-  { id: 1, testId: 1, name: "이서연", appliedAt: "2026.07.10", status: "대기중" },
-  { id: 2, testId: 1, name: "박준서", appliedAt: "2026.07.11", status: "대기중" },
-  { id: 3, testId: 1, name: "최민아", appliedAt: "2026.07.12", status: "승인" },
-  { id: 4, testId: 2, name: "정우진", appliedAt: "2026.07.09", status: "대기중" },
-  { id: 5, testId: 2, name: "한지민", appliedAt: "2026.07.13", status: "거절" },
-];
 
 const statusStyle: Record<TestStatus, string> = {
   모집중: "bg-green-50 text-green-700",
-  검토중: "bg-amber-50 text-amber-700",
   마감: "bg-gray-100 text-gray-500",
 };
 
-const applicantStatusStyle: Record<ApplicantStatus, string> = {
-  대기중: "bg-gray-100 text-gray-600",
-  승인: "bg-green-50 text-green-700",
+const applicantStatusStyle: Record<ApplicationStatus, string> = {
+  대기: "bg-gray-100 text-gray-600",
+  수락: "bg-green-50 text-green-700",
   거절: "bg-red-50 text-red-600",
 };
+
+const applicantStatusLabel: Record<ApplicationStatus, string> = {
+  대기: "대기중",
+  수락: "승인",
+  거절: "거절",
+};
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium" }).format(
+    new Date(value)
+  );
+}
 
 export default function HostMyPage() {
   const router = useRouter();
@@ -94,44 +49,55 @@ export default function HostMyPage() {
   const [loading, setLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
+  const [pageError, setPageError] = useState("");
+  const [updatingApplicantId, setUpdatingApplicantId] = useState<string | null>(null);
 
-  const [tests] = useState<MyTest[]>(dummyTests);
-  const [applicants, setApplicants] = useState<Applicant[]>(dummyApplicants);
-  const [selectedTestId, setSelectedTestId] = useState<number | null>(
-    dummyTests[0]?.id ?? null
-  );
+  const [tests, setTests] = useState<TestRow[]>([]);
+  const [applicants, setApplicants] = useState<ApplicationRow[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [applicantFilter, setApplicantFilter] = useState<
-    "전체" | ApplicantStatus
+    "전체" | ApplicationStatus
   >("전체");
 
-  const loadProfile = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const loadProfile = useCallback(async () => {
+    setPageError("");
+    try {
+      const currentProfile = await getCurrentProfile(supabase);
+      setProfile(currentProfile);
 
-    if (!user) {
-      setProfile(null);
+      if (!currentProfile) {
+        setTests([]);
+        setApplicants([]);
+        setSelectedTestId(null);
+        return;
+      }
+
+      const hostTests = await getMyTests(supabase);
+      setTests(hostTests);
+      setSelectedTestId((current) =>
+        current && hostTests.some((test) => test.id === current)
+          ? current
+          : (hostTests[0]?.id ?? null)
+      );
+
+      const hostApplications = await getApplicationsForHostTests(
+        supabase,
+        hostTests.map((test) => test.id)
+      );
+      setApplicants(hostApplications);
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "호스트 데이터를 불러오지 못했습니다."
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, email, name, login_id, role")
-      .eq("id", user.id)
-      .single();
-
-    if (data) {
-      setProfile(data as Profile);
-    }
-
-    setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
-    void loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const timerId = window.setTimeout(() => void loadProfile(), 0);
+    return () => window.clearTimeout(timerId);
+  }, [loadProfile]);
 
   const openAuthModal = (mode: AuthMode) => {
     setAuthInitialMode(mode);
@@ -139,21 +105,35 @@ export default function HostMyPage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout(supabase);
     setProfile(null);
+    setTests([]);
+    setApplicants([]);
     router.push("/host");
   };
 
-  const updateApplicantStatus = (id: number, status: ApplicantStatus) => {
-    setApplicants((prev) =>
-      prev.map((applicant) =>
+  const updateApplicantStatus = async (
+    id: string,
+    status: ApplicationStatus
+  ) => {
+    setUpdatingApplicantId(id);
+    const result = await updateApplicationStatus(supabase, id, status);
+    setUpdatingApplicantId(null);
+
+    if (!result.ok) {
+      setPageError(result.message);
+      return;
+    }
+
+    setApplicants((current) =>
+      current.map((applicant) =>
         applicant.id === id ? { ...applicant, status } : applicant
       )
     );
   };
 
   const visibleApplicants = applicants.filter((applicant) => {
-    if (applicant.testId !== selectedTestId) return false;
+    if (applicant.test_id !== selectedTestId) return false;
     if (applicantFilter === "전체") return true;
     return applicant.status === applicantFilter;
   });
@@ -218,6 +198,12 @@ export default function HostMyPage() {
           내 정보와 테스트를 관리해요
         </h1>
 
+        {pageError && (
+          <p className="mb-8 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+            {pageError}
+          </p>
+        )}
+
         {/* 1. 프로필 영역 — Supabase profiles 테이블에서 실제 조회 */}
         <div className="mb-8 rounded-[32px] bg-white p-8 shadow-sm ring-1 ring-purple-100">
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
@@ -257,6 +243,11 @@ export default function HostMyPage() {
         <section className="mb-8">
           <h2 className="mb-5 text-2xl font-black">내가 등록한 테스트</h2>
 
+          {tests.length === 0 ? (
+            <div className="rounded-2xl bg-white p-8 text-center text-gray-500 shadow-sm">
+              아직 등록한 테스트가 없어요.
+            </div>
+          ) : (
           <div className="grid gap-4 md:grid-cols-3">
             {tests.map((test) => (
               <button
@@ -281,13 +272,14 @@ export default function HostMyPage() {
 
                 <div className="space-y-2 text-sm text-gray-600">
                   <p>
-                    신청자 {test.applicants}/{test.target}명
+                    신청자 {applicants.filter((applicant) => applicant.test_id === test.id).length}/{test.target_people}명
                   </p>
                   <p>{test.reward}</p>
                 </div>
               </button>
             ))}
           </div>
+          )}
         </section>
 
         {/* 3. 신청자 관리 (승인/거절) */}
@@ -303,7 +295,7 @@ export default function HostMyPage() {
             </h2>
 
             <div className="flex gap-2">
-              {(["전체", "대기중", "승인", "거절"] as const).map((filter) => (
+              {(["전체", "대기", "수락", "거절"] as const).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setApplicantFilter(filter)}
@@ -313,7 +305,7 @@ export default function HostMyPage() {
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  {filter}
+                  {filter === "전체" ? filter : applicantStatusLabel[filter]}
                 </button>
               ))}
             </div>
@@ -331,9 +323,9 @@ export default function HostMyPage() {
                   className="flex flex-col justify-between gap-3 rounded-2xl border border-gray-200 p-4 sm:flex-row sm:items-center"
                 >
                   <div>
-                    <p className="font-bold">{applicant.name}</p>
+                    <p className="font-bold">{applicant.applicant_name}</p>
                     <p className="text-sm text-gray-500">
-                      신청일 {applicant.appliedAt}
+                      신청일 {formatDate(applicant.created_at)}
                     </p>
                   </div>
 
@@ -341,19 +333,19 @@ export default function HostMyPage() {
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-bold ${applicantStatusStyle[applicant.status]}`}
                     >
-                      {applicant.status}
+                      {applicantStatusLabel[applicant.status]}
                     </span>
 
                     <button
-                      onClick={() => updateApplicantStatus(applicant.id, "승인")}
-                      disabled={applicant.status === "승인"}
+                      onClick={() => void updateApplicantStatus(applicant.id, "수락")}
+                      disabled={applicant.status === "수락" || updatingApplicantId === applicant.id}
                       className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       승인
                     </button>
                     <button
-                      onClick={() => updateApplicantStatus(applicant.id, "거절")}
-                      disabled={applicant.status === "거절"}
+                      onClick={() => void updateApplicantStatus(applicant.id, "거절")}
+                      disabled={applicant.status === "거절" || updatingApplicantId === applicant.id}
                       className="rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       거절

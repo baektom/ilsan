@@ -1,16 +1,11 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
-import { createApplication } from "../../lib/supabase/applications";
 import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
 import { getAllTests } from "../../lib/supabase/tests";
-import type {
-  CreateApplicationInput,
-  Profile,
-  TestRow,
-} from "../../lib/supabase/types";
+import type { Profile, TestRow } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
 
 type TestItem = {
@@ -78,15 +73,7 @@ export default function TesterPage() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [searchText, setSearchText] = useState("");
 
-  const [selectedTest, setSelectedTest] = useState<TestItem | null>(null);
   const [pendingTest, setPendingTest] = useState<TestItem | null>(null);
-
-  const [applicantName, setApplicantName] = useState("");
-  const [age, setAge] = useState("");
-  const [region, setRegion] = useState("");
-  const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   // 현재 로그인 사용자 정보와 Supabase에 저장된 테스트 공고를 같이 불러옵니다.
   const loadPageData = useCallback(async () => {
@@ -94,7 +81,6 @@ export default function TesterPage() {
     const testRows = await getAllTests(supabase);
 
     setProfile(currentProfile);
-    setApplicantName(currentProfile?.name ?? "");
     setTestList(testRows.map(mapTestRowToItem));
     setLoading(false);
   }, [supabase]);
@@ -150,7 +136,7 @@ export default function TesterPage() {
   };
 
   // 지원하기 버튼을 눌렀을 때 실행됩니다.
-  // 로그인 전이면 로그인창을 열고, 로그인 후면 지원 모달을 엽니다.
+  // 로그인 전이면 로그인창을 열고, 로그인 후면 지원 페이지로 이동합니다.
   const handleApply = (test: TestItem) => {
     if (!profile) {
       setPendingTest(test);
@@ -158,39 +144,7 @@ export default function TesterPage() {
       return;
     }
 
-    setSelectedTest(test);
-  };
-
-  // 지원 모달에서 입력한 정보를 Supabase applications 테이블에 저장합니다.
-  const handleApplicationSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!selectedTest) return;
-
-    const input: CreateApplicationInput = {
-      testId: selectedTest.id,
-      applicantName,
-      age: age ? Number(age) : null,
-      region,
-      phone,
-      message,
-    };
-
-    setSubmitting(true);
-    const result = await createApplication(supabase, input);
-    setSubmitting(false);
-
-    alert(result.message);
-
-    if (!result.ok) {
-      return;
-    }
-
-    setSelectedTest(null);
-    setAge("");
-    setRegion("");
-    setPhone("");
-    setMessage("");
+    router.push(`/tests/apply/${test.id}`);
   };
 
   if (loading) {
@@ -351,114 +305,12 @@ export default function TesterPage() {
             await loadPageData();
 
             if (pendingTest) {
-              setSelectedTest(pendingTest);
+              const testId = pendingTest.id;
               setPendingTest(null);
+              router.push(`/tests/apply/${testId}`);
             }
           }}
         />
-      )}
-
-      {selectedTest && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center px-5">
-          <button
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => setSelectedTest(null)}
-            aria-label="지원창 닫기 배경"
-          />
-
-          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-8 shadow-2xl">
-            <button
-              onClick={() => setSelectedTest(null)}
-              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-bold hover:bg-gray-200"
-              aria-label="지원창 닫기"
-            >
-              ×
-            </button>
-
-            <div className="mb-6 pr-10">
-              <p className="mb-2 text-sm font-bold text-blue-600">
-                테스트 지원
-              </p>
-              <h2 className="text-2xl font-black">{selectedTest.title}</h2>
-              <p className="mt-2 text-sm text-gray-500">
-                {selectedTest.company} · {selectedTest.reward}
-              </p>
-            </div>
-
-            <form onSubmit={handleApplicationSubmit} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  이름
-                </label>
-                <input
-                  value={applicantName}
-                  onChange={(event) => setApplicantName(event.target.value)}
-                  required
-                  placeholder="이름을 입력하세요"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  나이
-                </label>
-                <input
-                  value={age}
-                  onChange={(event) => setAge(event.target.value)}
-                  type="number"
-                  placeholder="예: 24"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  지역
-                </label>
-                <input
-                  value={region}
-                  onChange={(event) => setRegion(event.target.value)}
-                  placeholder="예: 서울, 경기, 부산"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  연락처
-                </label>
-                <input
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  placeholder="예: 010-0000-0000"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  지원 메시지
-                </label>
-                <textarea
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  rows={4}
-                  placeholder="지원 동기나 호스트에게 전달할 내용을 입력하세요."
-                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {submitting ? "지원 중..." : "지원하기"}
-              </button>
-            </form>
-          </div>
-        </div>
       )}
 
       <section className="mx-auto max-w-6xl px-6 py-10">
@@ -585,7 +437,8 @@ export default function TesterPage() {
               {newTests.map((test) => (
                 <article
                   key={test.id}
-                  className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-1 hover:shadow-lg"
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-1 hover:shadow-lg"
                 >
                   <div className="mb-5 flex items-start justify-between">
                     <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-50 text-4xl">
@@ -613,7 +466,10 @@ export default function TesterPage() {
                   </div>
 
                   <button
-                    onClick={() => handleApply(test)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleApply(test);
+                    }}
                     className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700"
                   >
                     지원하기
@@ -650,7 +506,8 @@ export default function TesterPage() {
               {popularTests.map((test, index) => (
                 <article
                   key={test.id}
-                  className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-purple-100 transition hover:-translate-y-1 hover:shadow-lg"
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-purple-100 transition hover:-translate-y-1 hover:shadow-lg"
                 >
                   <div className="mb-5 flex items-start justify-between">
                     <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-50 text-4xl">
@@ -689,7 +546,10 @@ export default function TesterPage() {
                   </div>
 
                   <button
-                    onClick={() => handleApply(test)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleApply(test);
+                    }}
                     className="w-full rounded-2xl bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700"
                   >
                     지원하기
@@ -749,7 +609,8 @@ export default function TesterPage() {
               {filteredTests.map((test) => (
                 <article
                   key={test.id}
-                  className="rounded-3xl border border-gray-100 bg-white p-5 transition hover:border-blue-200 hover:bg-blue-50/40"
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-3xl border border-gray-100 bg-white p-5 transition hover:border-blue-200 hover:bg-blue-50/40"
                 >
                   <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
                     <div className="flex gap-4">
@@ -785,7 +646,10 @@ export default function TesterPage() {
                       <p className="font-bold text-blue-700">{test.reward}</p>
 
                       <button
-                        onClick={() => handleApply(test)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleApply(test);
+                        }}
                         className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
                       >
                         지원하기

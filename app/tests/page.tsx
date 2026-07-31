@@ -437,7 +437,8 @@ export default function TesterPage() {
               {newTests.map((test) => (
                 <article
                   key={test.id}
-                  className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-1 hover:shadow-lg"
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-1 hover:shadow-lg"
                 >
                   <div className="mb-5 flex items-start justify-between">
                     <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-50 text-4xl">
@@ -465,7 +466,10 @@ export default function TesterPage() {
                   </div>
 
                   <button
-                    onClick={() => handleApply(test)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleApply(test);
+                    }}
                     className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700"
                   >
                     지원하기
@@ -502,7 +506,8 @@ export default function TesterPage() {
               {popularTests.map((test, index) => (
                 <article
                   key={test.id}
-                  className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-purple-100 transition hover:-translate-y-1 hover:shadow-lg"
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-purple-100 transition hover:-translate-y-1 hover:shadow-lg"
                 >
                   <div className="mb-5 flex items-start justify-between">
                     <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-50 text-4xl">
@@ -541,7 +546,10 @@ export default function TesterPage() {
                   </div>
 
                   <button
-                    onClick={() => handleApply(test)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleApply(test);
+                    }}
                     className="w-full rounded-2xl bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700"
                   >
                     지원하기
@@ -601,7 +609,8 @@ export default function TesterPage() {
               {filteredTests.map((test) => (
                 <article
                   key={test.id}
-                  className="rounded-3xl border border-gray-100 bg-white p-5 transition hover:border-blue-200 hover:bg-blue-50/40"
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-3xl border border-gray-100 bg-white p-5 transition hover:border-blue-200 hover:bg-blue-50/40"
                 >
                   <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
                     <div className="flex gap-4">
@@ -637,7 +646,10 @@ export default function TesterPage() {
                       <p className="font-bold text-blue-700">{test.reward}</p>
 
                       <button
-                        onClick={() => handleApply(test)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleApply(test);
+                        }}
                         className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
                       >
                         지원하기

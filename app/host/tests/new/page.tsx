@@ -29,7 +29,8 @@ export default function NewHostTestPage() {
   const [lotteryWinnerCount, setLotteryWinnerCount] = useState("");
   const [lotteryReward, setLotteryReward] = useState("");
   const [targetPeople, setTargetPeople] = useState("");
-  const [location, setLocation] = useState("");
+  const [method, setMethod] = useState("");
+  const [region, setRegion] = useState("");
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
   const [description, setDescription] = useState("");
@@ -64,10 +65,35 @@ export default function NewHostTestPage() {
       return;
     }
 
+    if (!companyName.trim()) {
+      alert("회사명/브랜드명을 입력해주세요.");
+      return;
+    }
+
+    if (!method.trim()) {
+      alert("진행 방식을 입력해주세요.");
+      return;
+    }
+
+    if (!region.trim()) {
+      alert("지역을 입력해주세요.");
+      return;
+    }
+
+    if (!periodStart) {
+      alert("시작일을 선택해주세요.");
+      return;
+    }
+
+    if (!periodEnd) {
+      alert("종료일을 선택해주세요.");
+      return;
+    }
+
     const targetNumber = Number(targetPeople);
 
-    if (!targetNumber || Number.isNaN(targetNumber) || targetNumber < 30) {
-      alert("모집 인원은 최소 30명 이상이어야 합니다.");
+    if (!targetNumber || Number.isNaN(targetNumber) || targetNumber < 10) {
+      alert("모집 인원은 최소 10명 이상이어야 합니다.");
       return;
     }
 
@@ -114,7 +140,7 @@ export default function NewHostTestPage() {
       category,
       reward: finalReward,
       targetPeople: targetNumber,
-      location,
+      location: `${method.trim()} · ${region.trim()}`,
       periodStart,
       periodEnd,
       description,
@@ -192,11 +218,12 @@ export default function NewHostTestPage() {
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
-              회사명/브랜드명
+              회사명/브랜드명 <span className="text-red-500">*</span>
             </label>
             <input
               value={companyName}
               onChange={(event) => setCompanyName(event.target.value)}
+              required
               placeholder="예: 모아드림랩"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
             />
@@ -229,12 +256,12 @@ export default function NewHostTestPage() {
               onChange={(event) => setTargetPeople(event.target.value)}
               required
               type="number"
-              min="30"
-              placeholder="최소 30명"
+              min="10"
+              placeholder="최소 10명"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
             />
             <p className="mt-2 text-xs text-gray-400">
-              모아드림 공고는 최소 30명 이상 모집부터 등록할 수 있습니다.
+              모아드림 공고는 최소 10명 이상 모집부터 등록할 수 있습니다.
             </p>
           </div>
 
@@ -324,40 +351,60 @@ export default function NewHostTestPage() {
             )}
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">
-              진행 방식/지역
-            </label>
-            <input
-              value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              placeholder="예: 온라인, 전국 배송, 서울/경기"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                진행 방식 <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={method}
+                onChange={(event) => setMethod(event.target.value)}
+                required
+                placeholder="예: 온라인, 오프라인"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                지역 <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={region}
+                onChange={(event) => setRegion(event.target.value)}
+                required
+                placeholder="예: 서울/경기, 전국"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">
-              시작일
-            </label>
-            <input
-              value={periodStart}
-              onChange={(event) => setPeriodStart(event.target.value)}
-              type="date"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                시작일 <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={periodStart}
+                onChange={(event) => setPeriodStart(event.target.value)}
+                required
+                type="date"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+              />
+            </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">
-              종료일
-            </label>
-            <input
-              value={periodEnd}
-              onChange={(event) => setPeriodEnd(event.target.value)}
-              type="date"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-            />
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                종료일 <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={periodEnd}
+                onChange={(event) => setPeriodEnd(event.target.value)}
+                required
+                type="date"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+              />
+            </div>
           </div>
 
           <div className="md:col-span-2">

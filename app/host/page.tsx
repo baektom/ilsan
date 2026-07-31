@@ -3,21 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
-import {
-  getApplicationsForHostTests,
-  updateApplicationStatus,
-} from "../../lib/supabase/applications";
+import { getApplicationsForHostTests } from "../../lib/supabase/applications";
 import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
 import { getMyTests } from "../../lib/supabase/tests";
 import type {
   ApplicationRow,
-  ApplicationStatus,
   Profile,
   TestRow,
 } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
-
-type HostView = "dashboard" | "applicants";
 
 type RegisteredTestView = {
   id: string;
@@ -66,12 +60,9 @@ export default function HostPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
 
-  const [currentView, setCurrentView] = useState<HostView>("dashboard");
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tests, setTests] = useState<TestRow[]>([]);
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
-  const [selectedApplicantTestId, setSelectedApplicantTestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -137,44 +128,20 @@ export default function HostPage() {
     (application) => application.status === "대기"
   ).length;
 
-  const visibleApplications = useMemo(
-    () =>
-      selectedApplicantTestId
-        ? applications.filter(
-            (application) => application.test_id === selectedApplicantTestId
-          )
-        : applications,
-    [applications, selectedApplicantTestId]
-  );
-
-  const selectedApplicantTest = tests.find(
-    (test) => test.id === selectedApplicantTestId
-  );
-
   const openAuthModal = (mode: AuthMode) => {
     setAuthInitialMode(mode);
     setAuthModalOpen(true);
     setMenuOpen(false);
   };
 
-  const moveToView = (view: HostView) => {
-    if (!profile && view !== "dashboard") {
+  const goToApplicants = (testId?: string) => {
+    if (!profile) {
       openAuthModal("login");
       return;
     }
 
-    setCurrentView(view);
     setMenuOpen(false);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  const openApplicantsForTest = (testId: string) => {
-    setSelectedApplicantTestId(testId);
-    moveToView("applicants");
+    router.push(testId ? `/host/applicants?testId=${testId}` : "/host/applicants");
   };
 
   const goToCreateTest = () => {
@@ -192,32 +159,7 @@ export default function HostPage() {
     setProfile(null);
     setTests([]);
     setApplications([]);
-    setCurrentView("dashboard");
     setMenuOpen(false);
-  };
-
-  // 호스트가 지원자 상태를 대기 / 수락 / 거절로 변경하는 함수입니다.
-  // 지원자 확인 화면의 수락, 거절, 대기 버튼에서 사용합니다.
-  const handleApplicationStatusChange = async (
-    applicationId: string,
-    status: ApplicationStatus
-  ) => {
-    const result = await updateApplicationStatus(
-      supabase,
-      applicationId,
-      status
-    );
-
-    alert(result.message);
-
-    if (result.ok) {
-      await loadHostData();
-    }
-  };
-
-  // 지원자가 어떤 테스트에 지원했는지 테스트 제목을 찾아주는 함수입니다.
-  const getTestTitle = (testId: string) => {
-    return tests.find((test) => test.id === testId)?.title ?? "알 수 없는 테스트";
   };
 
   if (loading) {
@@ -329,7 +271,10 @@ export default function HostPage() {
               </button>
 
               <button
-                onClick={() => moveToView("dashboard")}
+                onClick={() => {
+                  setMenuOpen(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
               >
                 📊 내 테스트 진행 현황
@@ -343,10 +288,7 @@ export default function HostPage() {
               </button>
 
               <button
-                onClick={() => {
-                  setSelectedApplicantTestId(null);
-                  moveToView("applicants");
-                }}
+                onClick={() => goToApplicants()}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
               >
                 👥 지원자 확인
@@ -456,15 +398,14 @@ export default function HostPage() {
           </div>
         </div>
 
-        {currentView === "dashboard" && (
-          <section className="rounded-3xl bg-white p-6 shadow-sm">
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <p className="mb-2 text-sm font-bold text-purple-600">
-                  STATUS
-                </p>
-                <h2 className="text-2xl font-black">내 테스트 진행 현황</h2>
-              </div>
+        <section className="rounded-3xl bg-white p-6 shadow-sm">
+          <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <p className="mb-2 text-sm font-bold text-purple-600">
+                STATUS
+              </p>
+              <h2 className="text-2xl font-black">내 테스트 진행 현황</h2>
+            </div>
 
               {profile && (
                 <button
@@ -560,7 +501,7 @@ export default function HostPage() {
 
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => openApplicantsForTest(test.id)}
+                        onClick={() => goToApplicants(test.id)}
                         className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-bold text-white hover:bg-gray-700"
                       >
                         지원자 확인
@@ -580,105 +521,6 @@ export default function HostPage() {
               </div>
             )}
           </section>
-        )}
-
-        {currentView === "applicants" && (
-          <section className="rounded-3xl bg-white p-6 shadow-sm">
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <p className="mb-2 text-sm font-bold text-purple-600">
-                  APPLICANTS
-                </p>
-                <h2 className="text-2xl font-black">
-                  {selectedApplicantTest
-                    ? `${selectedApplicantTest.title} 지원자 확인`
-                    : "전체 지원자 확인"}
-                </h2>
-              </div>
-
-              <button
-                onClick={() => moveToView("dashboard")}
-                className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50"
-              >
-                진행 현황으로 돌아가기
-              </button>
-            </div>
-
-            {!profile ? (
-              <div className="rounded-2xl bg-gray-50 p-6 text-center text-gray-500">
-                로그인하면 지원자 목록을 확인할 수 있습니다.
-              </div>
-            ) : visibleApplications.length === 0 ? (
-              <div className="rounded-2xl bg-gray-50 p-6 text-center text-gray-500">
-                {selectedApplicantTest
-                  ? "이 테스트에는 아직 지원자가 없습니다."
-                  : "아직 지원자가 없습니다."}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {visibleApplications.map((application) => (
-                  <article
-                    key={application.id}
-                    className="rounded-2xl border border-gray-200 p-5"
-                  >
-                    <p className="mb-2 text-sm font-bold text-purple-600">
-                      {getTestTitle(application.test_id)}
-                    </p>
-
-                    <h3 className="mb-2 text-lg font-black">
-                      {application.applicant_name}
-                    </h3>
-
-                    <p className="mb-3 text-sm text-gray-500">
-                      나이: {application.age ?? "미입력"} · 지역:{" "}
-                      {application.region ?? "미입력"} · 연락처:{" "}
-                      {application.phone ?? "미입력"}
-                    </p>
-
-                    {application.message && (
-                      <p className="mb-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
-                        {application.message}
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="mr-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                        현재 상태: {application.status}
-                      </span>
-
-                      <button
-                        onClick={() =>
-                          handleApplicationStatusChange(application.id, "수락")
-                        }
-                        className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700"
-                      >
-                        수락
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          handleApplicationStatusChange(application.id, "거절")
-                        }
-                        className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
-                      >
-                        거절
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          handleApplicationStatusChange(application.id, "대기")
-                        }
-                        className="rounded-xl bg-gray-200 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-300"
-                      >
-                        대기
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
       </section>
     </main>
   );

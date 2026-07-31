@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 import {
@@ -8,19 +8,16 @@ import {
   updateApplicationStatus,
 } from "../../lib/supabase/applications";
 import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
-import { createTest, getMyTests } from "../../lib/supabase/tests";
+import { getMyTests } from "../../lib/supabase/tests";
 import type {
   ApplicationRow,
   ApplicationStatus,
-  CreateTestInput,
   Profile,
   TestRow,
 } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
 
-type HostView = "dashboard" | "create" | "applicants";
-
-type RewardType = "all" | "lottery";
+type HostView = "dashboard" | "applicants";
 
 type RegisteredTestView = {
   id: string;
@@ -80,20 +77,6 @@ export default function HostPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
-
-  const [title, setTitle] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [category, setCategory] = useState("화장품");
-  const [rewardType, setRewardType] = useState<RewardType>("all");
-  const [allReward, setAllReward] = useState("");
-  const [lotteryWinnerCount, setLotteryWinnerCount] = useState("");
-  const [lotteryReward, setLotteryReward] = useState("");
-  const [targetPeople, setTargetPeople] = useState("");
-  const [location, setLocation] = useState("");
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const loadHostData = useCallback(async () => {
     const currentProfile = await getCurrentProfile(supabase);
@@ -194,6 +177,16 @@ export default function HostPage() {
     moveToView("applicants");
   };
 
+  const goToCreateTest = () => {
+    if (!profile) {
+      openAuthModal("login");
+      return;
+    }
+
+    setMenuOpen(false);
+    router.push("/host/tests/new");
+  };
+
   const handleLogout = async () => {
     await logout(supabase);
     setProfile(null);
@@ -202,97 +195,6 @@ export default function HostPage() {
     setCurrentView("dashboard");
     setMenuOpen(false);
   };
-
-  const handleCreateTest = async (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-
-  if (!profile) {
-    openAuthModal("login");
-    return;
-  }
-
-  const targetNumber = Number(targetPeople);
-
-  if (!targetNumber || Number.isNaN(targetNumber) || targetNumber < 30) {
-    alert("모집 인원은 최소 30명 이상이어야 합니다.");
-    return;
-  }
-
-  if (periodStart && periodEnd && periodStart > periodEnd) {
-    alert("종료일은 시작일보다 빠를 수 없습니다.");
-    return;
-  }
-
-  let finalReward = "";
-
-  if (rewardType === "all") {
-    if (!allReward.trim()) {
-      alert("참가자 전원에게 제공할 보상 내용을 입력해주세요.");
-      return;
-    }
-
-    finalReward = `전원 제공: ${allReward.trim()}`;
-  }
-
-  if (rewardType === "lottery") {
-    const winnerCount = Number(lotteryWinnerCount);
-
-    if (!winnerCount || Number.isNaN(winnerCount) || winnerCount <= 0) {
-      alert("추첨 보상 인원을 올바르게 입력해주세요.");
-      return;
-    }
-
-    if (winnerCount > targetNumber) {
-      alert("추첨 보상 인원은 모집 인원보다 많을 수 없습니다.");
-      return;
-    }
-
-    if (!lotteryReward.trim()) {
-      alert("추첨으로 제공할 보상 내용을 입력해주세요.");
-      return;
-    }
-
-    finalReward = `추첨 ${winnerCount}명: ${lotteryReward.trim()}`;
-  }
-
-  const input: CreateTestInput = {
-    title,
-    companyName,
-    category,
-    reward: finalReward,
-    targetPeople: targetNumber,
-    location,
-    periodStart,
-    periodEnd,
-    description,
-  };
-
-  setSubmitting(true);
-  const result = await createTest(supabase, input);
-  setSubmitting(false);
-
-  alert(result.message);
-
-  if (!result.ok) {
-    return;
-  }
-
-  setTitle("");
-  setCompanyName("");
-  setCategory("화장품");
-  setRewardType("all");
-  setAllReward("");
-  setLotteryWinnerCount("");
-  setLotteryReward("");
-  setTargetPeople("");
-  setLocation("");
-  setPeriodStart("");
-  setPeriodEnd("");
-  setDescription("");
-
-  await loadHostData();
-  setCurrentView("dashboard");
-};
 
   // 호스트가 지원자 상태를 대기 / 수락 / 거절로 변경하는 함수입니다.
   // 지원자 확인 화면의 수락, 거절, 대기 버튼에서 사용합니다.
@@ -434,7 +336,7 @@ export default function HostPage() {
               </button>
 
               <button
-                onClick={() => moveToView("create")}
+                onClick={goToCreateTest}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
               >
                 📝 테스트 등록
@@ -522,7 +424,7 @@ export default function HostPage() {
               </p>
 
               <button
-                onClick={() => moveToView("create")}
+                onClick={goToCreateTest}
                 className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700"
               >
                 빠른 공고 등록
@@ -566,7 +468,7 @@ export default function HostPage() {
 
               {profile && (
                 <button
-                  onClick={() => moveToView("create")}
+                  onClick={goToCreateTest}
                   className="rounded-2xl bg-purple-600 px-5 py-3 text-sm font-bold text-white hover:bg-purple-700"
                 >
                   새 공고 등록
@@ -592,7 +494,7 @@ export default function HostPage() {
                   아직 등록한 테스트가 없습니다.
                 </p>
                 <button
-                  onClick={() => moveToView("create")}
+                  onClick={goToCreateTest}
                   className="rounded-2xl bg-purple-600 px-5 py-3 font-bold text-white hover:bg-purple-700"
                 >
                   첫 테스트 등록하기
@@ -677,246 +579,6 @@ export default function HostPage() {
                 ))}
               </div>
             )}
-          </section>
-        )}
-
-        {currentView === "create" && (
-          <section className="rounded-3xl bg-white p-6 shadow-sm">
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <p className="mb-2 text-sm font-bold text-purple-600">
-                  CREATE
-                </p>
-                <h2 className="text-2xl font-black">새 테스트 등록</h2>
-              </div>
-
-              <button
-                onClick={() => moveToView("dashboard")}
-                className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50"
-              >
-                진행 현황으로 돌아가기
-              </button>
-            </div>
-
-            {!profile && (
-              <div className="mb-5 rounded-2xl bg-purple-50 p-5 text-sm font-semibold text-purple-700">
-                테스트 등록은 로그인 후 가능합니다.
-              </div>
-            )}
-
-            <form
-              onSubmit={handleCreateTest}
-              className="grid gap-4 md:grid-cols-2"
-            >
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  테스트 제목
-                </label>
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  required
-                  placeholder="예: 신규 수분크림 7일 사용 테스트"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  회사명/브랜드명
-                </label>
-                <input
-                  value={companyName}
-                  onChange={(event) => setCompanyName(event.target.value)}
-                  placeholder="예: 모아드림랩"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  카테고리
-                </label>
-                <select
-                  value={category}
-                  onChange={(event) => setCategory(event.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                >
-                  <option>화장품</option>
-                  <option>게임</option>
-                  <option>시제품</option>
-                  <option>설문조사</option>
-                  <option>식품</option>
-                  <option>기타</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  모집 인원
-                </label>
-                <input
-                  value={targetPeople}
-                  onChange={(event) => setTargetPeople(event.target.value)}
-                  required
-                  type="number"
-                  min="30"
-                  placeholder="최소 30명"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-                <p className="mt-2 text-xs text-gray-400">
-                  모아드림 공고는 최소 30명 이상 모집부터 등록할 수 있습니다.
-                </p>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-3 block text-sm font-semibold text-gray-700">
-                  보상 방식
-                </label>
-
-                <div className="mb-4 grid grid-cols-2 gap-3 rounded-2xl bg-gray-50 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setRewardType("all")}
-                    className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                      rewardType === "all"
-                        ? "bg-purple-600 text-white shadow-sm"
-                        : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    참가자 전원 제공
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRewardType("lottery")}
-                    className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                      rewardType === "lottery"
-                        ? "bg-purple-600 text-white shadow-sm"
-                        : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    추첨 제공
-                  </button>
-                </div>
-
-                {rewardType === "all" && (
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-gray-700">
-                      참가자 전원 보상 내용
-                    </label>
-                    <input
-                      value={allReward}
-                      onChange={(event) => setAllReward(event.target.value)}
-                      required
-                      placeholder="예: 제품 제공 + 10,000원"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                    />
-                    <p className="mt-2 text-xs text-gray-400">
-                      테스트에 참여한 모든 사람에게 제공되는 보상을 입력해주세요.
-                    </p>
-                  </div>
-                )}
-
-                {rewardType === "lottery" && (
-                  <div className="grid gap-4 md:grid-cols-[0.6fr_1.4fr]">
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        추첨 인원
-                      </label>
-                      <input
-                        value={lotteryWinnerCount}
-                        onChange={(event) => setLotteryWinnerCount(event.target.value)}
-                        required
-                        type="number"
-                        min="1"
-                        placeholder="예: 5"
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        추첨 보상 내용
-                      </label>
-                      <input
-                        value={lotteryReward}
-                        onChange={(event) => setLotteryReward(event.target.value)}
-                        required
-                        placeholder="예: 5명에게 백화점 상품권 5만원권"
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                      />
-                    </div>
-
-                    <p className="text-xs text-gray-400 md:col-span-2">
-                      추첨 보상 인원은 모집 인원보다 많을 수 없습니다.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  진행 방식/지역
-                </label>
-                <input
-                  value={location}
-                  onChange={(event) => setLocation(event.target.value)}
-                  placeholder="예: 온라인, 전국 배송, 서울/경기"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  시작일
-                </label>
-                <input
-                  value={periodStart}
-                  onChange={(event) => setPeriodStart(event.target.value)}
-                  type="date"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  종료일
-                </label>
-                <input
-                  value={periodEnd}
-                  onChange={(event) => setPeriodEnd(event.target.value)}
-                  type="date"
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  테스트 설명
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  required
-                  rows={6}
-                  placeholder="테스트 목적, 진행 방식, 신청 조건 등을 입력하세요."
-                  className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-xl bg-purple-600 px-5 py-3 font-bold text-white hover:bg-purple-700 disabled:bg-gray-400 md:col-span-2"
-              >
-                {submitting
-                  ? "등록 중..."
-                  : profile
-                    ? "테스트 등록하기"
-                    : "로그인 후 등록하기"}
-              </button>
-            </form>
           </section>
         )}
 

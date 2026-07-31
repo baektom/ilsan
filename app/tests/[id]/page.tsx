@@ -31,7 +31,7 @@ export default function TestDetailPage({ params }: Props) {
           <li>진행 방식: 제품 수령 후 후기 제출</li>
         </ul>
 
-        <Link href={`/apply/${params.id}`}>신청하기</Link>
+        <Link href={`/tests/apply/${params.id}`}>신청하기</Link>
       </div>
     </main>
   );

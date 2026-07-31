@@ -144,7 +144,7 @@ export default function TesterPage() {
       return;
     }
 
-    router.push(`/apply/${test.id}`);
+    router.push(`/tests/apply/${test.id}`);
   };
 
   if (loading) {
@@ -307,7 +307,7 @@ export default function TesterPage() {
             if (pendingTest) {
               const testId = pendingTest.id;
               setPendingTest(null);
-              router.push(`/apply/${testId}`);
+              router.push(`/tests/apply/${testId}`);
             }
           }}
         />

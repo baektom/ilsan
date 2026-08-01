@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Profile } from "./types";
+import type { AccountRole, Profile } from "./types";
 
 export async function getCurrentUser(supabase: SupabaseClient) {
   const {
@@ -11,7 +11,8 @@ export async function getCurrentUser(supabase: SupabaseClient) {
 }
 
 export async function getCurrentProfile(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  expectedRole?: AccountRole
 ): Promise<Profile | null> {
   const user = await getCurrentUser(supabase);
 
@@ -19,12 +20,22 @@ export async function getCurrentProfile(
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, email, name, login_id, role")
+    .select("id, email, name, login_id, role, host_approval_status")
     .eq("id", user.id)
     .single();
 
   if (error || !data) return null;
-  return data as Profile;
+
+  const profile = data as Profile;
+  if (expectedRole && profile.role !== expectedRole) return null;
+
+  return profile;
+}
+
+export function isApprovedHost(profile: Profile | null) {
+  return (
+    profile?.role === "host" && profile.host_approval_status === "approved"
+  );
 }
 
 export async function logout(supabase: SupabaseClient) {

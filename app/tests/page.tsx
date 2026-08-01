@@ -90,7 +90,7 @@ export default function TesterPage() {
 
   // 현재 로그인 사용자 정보와 Supabase에 저장된 테스트 공고를 같이 불러옵니다.
   const loadPageData = useCallback(async () => {
-    const currentProfile = await getCurrentProfile(supabase);
+    const currentProfile = await getCurrentProfile(supabase, "tester");
     const testRows = await getAllTests(supabase);
 
     setProfile(currentProfile);
@@ -108,6 +108,20 @@ export default function TesterPage() {
       window.clearTimeout(timerId);
     };
   }, [loadPageData]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("auth") !== "login") {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setAuthInitialMode("login");
+      setAuthModalOpen(true);
+      window.history.replaceState({}, "", "/tests");
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
 
   const openAuthModal = (mode: AuthMode) => {
     setAuthInitialMode(mode);
@@ -136,6 +150,13 @@ export default function TesterPage() {
     await logout(supabase);
     setProfile(null);
     setMenuOpen(false);
+  };
+
+  const handleSwitchToHost = async () => {
+    await logout(supabase);
+    setProfile(null);
+    setMenuOpen(false);
+    router.push("/host?auth=login");
   };
 
   const moveToNoticeList = () => {
@@ -214,7 +235,7 @@ export default function TesterPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("/host")}
+              onClick={handleSwitchToHost}
               className="flex h-11 w-11 items-center justify-center rounded-2xl border border-purple-100 bg-purple-50 text-xl text-purple-700 transition hover:bg-purple-100"
               aria-label="호스트로 전환하기"
               title="호스트로 전환하기"
@@ -346,6 +367,7 @@ export default function TesterPage() {
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="tester"
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={async () => {
             await loadPageData();

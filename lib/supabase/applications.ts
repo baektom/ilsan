@@ -11,7 +11,7 @@ export async function createApplication(
   supabase: SupabaseClient,
   input: CreateApplicationInput
 ): Promise<{ ok: boolean; message: string }> {
-  const profile = await getCurrentProfile(supabase);
+  const profile = await getCurrentProfile(supabase, "tester");
 
   if (!profile) return { ok: false, message: "로그인 후 지원할 수 있습니다." };
   if (profile.role !== "tester") {

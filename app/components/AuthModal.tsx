@@ -2,11 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
+import type { AccountRole } from "../../lib/supabase/types";
 
 export type AuthMode = "login" | "signup";
 
 type AuthModalProps = {
   initialMode: AuthMode;
+  accountRole: AccountRole;
   onClose: () => void;
   onAuthSuccess?: () => void | Promise<void>;
 };
@@ -82,6 +84,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
 
 export default function AuthModal({
   initialMode,
+  accountRole,
   onClose,
   onAuthSuccess,
 }: AuthModalProps) {
@@ -134,13 +137,14 @@ export default function AuthModal({
       setLoginIdStatus("checking");
       const { data } = await supabase.rpc("get_email_by_login_id", {
         input_login_id: cleanLoginId,
+        input_role: accountRole,
       });
 
       setLoginIdStatus(data ? "duplicate" : "available");
     }, shouldCheck ? 500 : 0);
 
     return () => window.clearTimeout(timerId);
-  }, [loginId, loginIdHasKorean, authMode, supabase]);
+  }, [loginId, loginIdHasKorean, authMode, accountRole, supabase]);
 
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -207,6 +211,7 @@ export default function AuthModal({
         "get_email_by_login_id",
         {
           input_login_id: cleanLoginId,
+          input_role: accountRole,
         }
       );
 
@@ -223,6 +228,7 @@ export default function AuthModal({
           data: {
             name: cleanName,
             login_id: cleanLoginId,
+            role: accountRole,
           },
         },
       });
@@ -237,7 +243,9 @@ export default function AuthModal({
       }
 
       setSuccessMessage(
-        "회원가입이 완료되었습니다. 이메일 인증 후 로그인해주세요."
+        accountRole === "host"
+          ? "호스트 회원가입이 완료되었습니다. 이메일 인증 후 로그인할 수 있으며, 테스트 등록과 지원자 관리는 관리자 승인 후 가능합니다."
+          : "테스터 회원가입이 완료되었습니다. 이메일 인증 후 로그인해주세요."
       );
 
       setAuthMode("login");
@@ -269,6 +277,7 @@ export default function AuthModal({
       "get_email_by_login_id",
       {
         input_login_id: cleanLoginIdentifier,
+        input_role: accountRole,
       }
     );
 
@@ -288,6 +297,20 @@ export default function AuthModal({
     if (error || !data.user) {
       setErrorMessage(
         "로그인에 실패했습니다. 아이디, 비밀번호 또는 이메일 인증 상태를 확인해주세요."
+      );
+      return;
+    }
+
+    const { data: signedInProfile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError || signedInProfile?.role !== accountRole) {
+      await supabase.auth.signOut();
+      setErrorMessage(
+        `${accountRole === "host" ? "호스트" : "테스터"} 계정으로 로그인해주세요.`
       );
       return;
     }
@@ -315,13 +338,15 @@ export default function AuthModal({
 
         <div className="mb-8 pr-10 text-center">
           <h1 className="mb-3 text-3xl font-black">
-            {authMode === "login" ? "로그인" : "회원가입"}
+            {accountRole === "host" ? "호스트" : "테스터"} {authMode === "login" ? "로그인" : "회원가입"}
           </h1>
 
           <p className="text-gray-500">
             {authMode === "login"
-              ? "로그인 아이디로 접속해주세요."
-              : "이메일 인증 후 로그인 아이디로 접속할 수 있습니다."}
+              ? `${accountRole === "host" ? "호스트" : "테스터"} 로그인 아이디로 접속해주세요.`
+              : accountRole === "host"
+                ? "호스트 계정은 관리자 승인 후 활동할 수 있습니다."
+                : "이메일 인증 후 테스터 계정으로 접속할 수 있습니다."}
           </p>
         </div>
 

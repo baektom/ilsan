@@ -7,7 +7,11 @@ import {
   getApplicationsForHostTests,
   updateApplicationStatus,
 } from "../../lib/supabase/applications";
-import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
+import {
+  getCurrentProfile,
+  isApprovedHost,
+  logout,
+} from "../../lib/supabase/profiles";
 import { createTest, getMyTests } from "../../lib/supabase/tests";
 import type {
   ApplicationRow,
@@ -96,11 +100,11 @@ export default function HostPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const loadHostData = useCallback(async () => {
-    const currentProfile = await getCurrentProfile(supabase);
+    const currentProfile = await getCurrentProfile(supabase, "host");
 
     setProfile(currentProfile);
 
-    if (!currentProfile) {
+    if (!currentProfile || !isApprovedHost(currentProfile)) {
       setTests([]);
       setApplications([]);
       setLoading(false);
@@ -128,6 +132,22 @@ export default function HostPage() {
       window.clearTimeout(timerId);
     };
   }, [loadHostData]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("auth") !== "login") {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setAuthInitialMode("login");
+      setAuthModalOpen(true);
+      window.history.replaceState({}, "", "/host");
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
+
+  const hostCanAct = isApprovedHost(profile);
 
   const registeredTests = useMemo<RegisteredTestView[]>(() => {
     return tests.map((test) => {
@@ -180,6 +200,11 @@ export default function HostPage() {
       return;
     }
 
+    if (profile && !hostCanAct && view !== "dashboard") {
+      alert("관리자 승인 후 호스트 기능을 이용할 수 있습니다.");
+      return;
+    }
+
     setCurrentView(view);
     setMenuOpen(false);
 
@@ -203,11 +228,25 @@ export default function HostPage() {
     setMenuOpen(false);
   };
 
+  const handleSwitchToTester = async () => {
+    await logout(supabase);
+    setProfile(null);
+    setTests([]);
+    setApplications([]);
+    setMenuOpen(false);
+    router.push("/tests?auth=login");
+  };
+
   const handleCreateTest = async (event: FormEvent<HTMLFormElement>) => {
   event.preventDefault();
 
   if (!profile) {
     openAuthModal("login");
+    return;
+  }
+
+  if (!hostCanAct) {
+    alert("관리자 승인 후 테스트를 등록할 수 있습니다.");
     return;
   }
 
@@ -339,7 +378,7 @@ export default function HostPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("/tests")}
+              onClick={handleSwitchToTester}
               className="flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-xl text-blue-700 transition hover:bg-blue-100"
               aria-label="테스터로 전환하기"
               title="테스터로 전환하기"
@@ -419,6 +458,10 @@ export default function HostPage() {
                   }
 
                   setMenuOpen(false);
+                  if (!hostCanAct) {
+                    alert("관리자 승인 후 호스트 마이페이지를 이용할 수 있습니다.");
+                    return;
+                  }
                   router.push("/host/mypage");
                 }}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
@@ -474,6 +517,7 @@ export default function HostPage() {
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="host"
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={async () => {
             await loadHostData();
@@ -517,15 +561,17 @@ export default function HostPage() {
           ) : (
             <>
               <p className="mb-8 max-w-2xl text-lg leading-8 text-gray-600">
-                현재 진행 중인 테스트의 참여 현황, 목표 달성률, 지원자 상태를
-                확인할 수 있습니다.
+                {hostCanAct
+                  ? "현재 진행 중인 테스트의 참여 현황, 목표 달성률, 지원자 상태를 확인할 수 있습니다."
+                  : "호스트 가입이 완료되었습니다. 관리자 승인 전에도 호스트 홈은 둘러볼 수 있습니다."}
               </p>
 
               <button
                 onClick={() => moveToView("create")}
-                className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700"
+                disabled={!hostCanAct}
+                className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
               >
-                빠른 공고 등록
+                {hostCanAct ? "빠른 공고 등록" : "관리자 승인 대기 중"}
               </button>
             </>
           )}

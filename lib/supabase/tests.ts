@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getCurrentProfile, getCurrentUser } from "./profiles";
+import { getCurrentProfile, getCurrentUser, isApprovedHost } from "./profiles";
 import type { CreateTestInput, TestRow, TestStatus } from "./types";
 
 export async function getAllTests(supabase: SupabaseClient): Promise<TestRow[]> {
@@ -35,6 +35,9 @@ export async function createTest(
   if (!profile) return { ok: false, message: "로그인 후 등록할 수 있습니다." };
   if (profile.role !== "host") {
     return { ok: false, message: "호스트 계정만 테스트를 등록할 수 있습니다." };
+  }
+  if (!isApprovedHost(profile)) {
+    return { ok: false, message: "관리자 승인 후 테스트를 등록할 수 있습니다." };
   }
   if (!input.title.trim()) return { ok: false, message: "제목을 입력해 주세요." };
   if (!input.reward.trim()) return { ok: false, message: "보상을 입력해 주세요." };

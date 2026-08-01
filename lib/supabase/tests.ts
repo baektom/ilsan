@@ -12,6 +12,20 @@ export async function getAllTests(supabase: SupabaseClient): Promise<TestRow[]> 
   return (data ?? []) as TestRow[];
 }
 
+export async function getTestById(
+  supabase: SupabaseClient,
+  testId: string
+): Promise<TestRow | null> {
+  const { data, error } = await supabase
+    .from("tests")
+    .select("*")
+    .eq("id", testId)
+    .single();
+
+  if (error || !data) return null;
+  return data as TestRow;
+}
+
 export async function getMyTests(supabase: SupabaseClient): Promise<TestRow[]> {
   const user = await getCurrentUser(supabase);
   if (!user) return [];

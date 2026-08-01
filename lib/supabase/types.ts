@@ -35,6 +35,8 @@ export type TestRow = {
   period_end: string | null;
   description: string;
   status: TestStatus;
+  view_count: number;
+  applicant_count: number;
   created_at: string;
 };
 

@@ -10,6 +10,16 @@ export type Profile = {
   name: string | null;
   login_id: string | null;
   role: UserRole;
+  age: number | null;
+  region: string | null;
+  phone: string | null;
+};
+
+export type UpdateProfileInput = {
+  name: string;
+  age: number | null;
+  region: string;
+  phone: string;
 };
 
 export type TestRow = {
@@ -25,6 +35,8 @@ export type TestRow = {
   period_end: string | null;
   description: string;
   status: TestStatus;
+  view_count: number;
+  applicant_count: number;
   created_at: string;
 };
 

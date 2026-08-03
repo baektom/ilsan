@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import HomeBanner from "./components/HomeBanner";
 
 type Step = "intro" | "role";
 
@@ -32,8 +31,6 @@ export default function HomePage() {
         >
           {step === "intro" && (
             <div className="flex flex-col items-center text-center">
-              <HomeBanner />
-
               <div className="mb-8 h-[280px] w-[280px] overflow-hidden rounded-[40px] bg-white shadow-2xl md:h-[420px] md:w-[420px]">
                 <Image
                   src="/moadream-main.png"

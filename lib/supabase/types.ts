@@ -1,6 +1,6 @@
-export type AccountRole = "tester" | "host";
+export type AccountRole = "tester" | "host" | "admin";
 
-export type UserRole = AccountRole | "admin" | null;
+export type UserRole = AccountRole | null;
 
 export type HostApprovalStatus =
   | "not_applicable"
@@ -8,25 +8,20 @@ export type HostApprovalStatus =
   | "approved"
   | "rejected";
 
-export type BannerPlacement = "home";
+export type HostType = "individual" | "business" | null;
 
-// 관리자 페이지에서 배너 목록/등록 폼을 만들 때 이 타입을 그대로 사용하면 됩니다.
-export type BannerRow = {
+export type BusinessVerificationStatus =
+  | "not_applicable"
+  | "pending"
+  | "verified"
+  | "failed";
+
+export type AccountRoleRow = {
   id: string;
-  title: string;
-  description: string | null;
-  image_url: string | null;
-  link_url: string | null;
-  button_label: string | null;
-  background_color: string;
-  text_color: string;
-  placement: BannerPlacement;
-  is_active: boolean;
-  display_order: number;
-  starts_at: string | null;
-  ends_at: string | null;
+  profile_id: string;
+  role: AccountRole;
+  login_id: string;
   created_at: string;
-  updated_at: string;
 };
 
 export type TestStatus = "모집중" | "마감";
@@ -39,7 +34,16 @@ export type Profile = {
   name: string | null;
   login_id: string | null;
   role: UserRole;
+  roles: AccountRole[];
   host_approval_status: HostApprovalStatus;
+  host_type: HostType;
+  business_number: string | null;
+  business_name: string | null;
+  business_start_date: string | null;
+  representative_name: string | null;
+  business_verification_status: BusinessVerificationStatus;
+  business_verified_at: string | null;
+  business_verification_message: string | null;
 };
 
 export type TestRow = {

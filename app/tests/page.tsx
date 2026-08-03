@@ -96,12 +96,13 @@ export default function TesterPage() {
   }, [loadPageData]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("auth") !== "login") {
+    const requestedMode = new URLSearchParams(window.location.search).get("auth");
+    if (requestedMode !== "login" && requestedMode !== "signup") {
       return;
     }
 
     const timerId = window.setTimeout(() => {
-      setAuthInitialMode("login");
+      setAuthInitialMode(requestedMode);
       setAuthModalOpen(true);
       window.history.replaceState({}, "", "/tests");
     }, 0);
@@ -139,10 +140,17 @@ export default function TesterPage() {
   };
 
   const handleSwitchToHost = async () => {
+    if (profile?.roles.includes("host")) {
+      setMenuOpen(false);
+      router.push("/host");
+      return;
+    }
+
+    const targetAuthMode: AuthMode = profile ? "signup" : "login";
     await logout(supabase);
     setProfile(null);
     setMenuOpen(false);
-    router.push("/host?auth=login");
+    router.push(`/host?auth=${targetAuthMode}`);
   };
 
   const moveToNoticeList = () => {

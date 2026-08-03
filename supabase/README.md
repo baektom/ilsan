@@ -1,69 +1,73 @@
 # Supabase 적용 순서
 
-1. Supabase Dashboard의 **SQL Editor**를 엽니다.
-2. `migrations/20260801_role_accounts_and_host_approval.sql` 전체를 실행합니다.
-3. 새 호스트 계정으로 회원가입하면 `profiles.host_approval_status`가 `pending`으로 저장되는지 확인합니다.
+기존 `profiles`, `tests`, `applications` 테이블이 만들어진 프로젝트를 기준으로 합니다. Supabase Dashboard의 **SQL Editor**에서 아래 파일을 순서대로 한 번씩 실행합니다.
 
-관리자 페이지가 완성되기 전에는 SQL Editor에서 아래처럼 승인할 수 있습니다.
+1. `migrations/20260801_role_accounts_and_host_approval.sql`
+2. `migrations/20260803_account_identity_and_host_types.sql`
+3. `migrations/20260803_linked_role_accounts.sql`
+4. 과거 배너 SQL을 실행했다면 `migrations/20260803_remove_home_banners.sql`
+
+세 번째 SQL부터 계정은 다음 구조를 사용합니다.
+
+- `auth.users`: 한 사람의 이메일 인증과 비밀번호를 담당합니다.
+- `profiles`: 한 사람의 공통 프로필과 호스트 검증 정보를 저장합니다.
+- `account_roles`: 테스터·호스트·관리자 역할과 역할별 로그인 아이디를 저장합니다.
+- 한 프로필은 `tester`, `host`, `admin` 역할을 동시에 가질 수 있습니다.
+- 역할별 로그인 아이디는 서로 달라야 하며 서비스 전체에서 중복될 수 없습니다.
+- 동일 인물이 개인 테스터와 개인 호스트 역할을 연결하면 이메일 인증과 비밀번호는 하나를 공유합니다.
+- 기업 호스트는 개인 역할 연결 대상에서 제외하고 별도 이메일 계정으로 가입합니다.
+
+## 기존 계정에 역할 연결
+
+회원가입 화면 아래의 작은 `기존 모아드림 테스터/호스트 가입 이력이 있나요?` 버튼을 사용합니다. 기존 역할 아이디와 비밀번호로 본인임을 확인한 뒤 새 역할 아이디를 입력합니다.
+
+- 기존 테스터 → 개인 호스트 역할 추가
+- 기존 개인 호스트 → 테스터 역할 추가
+- 이메일 인증은 기존 Auth 사용자에서 이미 완료했으므로 다시 발송하지 않습니다.
+- 개인 호스트 역할을 추가하면 `host_approval_status = 'pending'`이며 관리자 승인 후 활동합니다.
+- 두 역할이 연결된 뒤에는 테스터·호스트 전환 시 로그아웃하지 않고 같은 세션으로 바로 이동합니다.
+- 반대 역할이 아직 없을 때만 해당 역할의 회원가입·기존 계정 연결 화면을 엽니다.
+
+## 개인 호스트 승인
+
+관리자 화면이 완성되기 전에는 SQL Editor에서 역할별 아이디를 찾아 승인합니다.
 
 ```sql
 update public.profiles
 set host_approval_status = 'approved'
-where role = 'host'
-  and login_id = '승인할_호스트_아이디';
+where id = (
+  select profile_id
+  from public.account_roles
+  where role = 'host'
+    and login_id = '승인할_호스트_아이디'
+);
 ```
 
-승인 대기 호스트 목록은 아래 쿼리로 확인합니다.
+## 관리자 역할 추가
+
+관리자는 공개 회원가입으로 만들지 않습니다. 기존 테스터 또는 호스트 프로필에 별도의 관리자 아이디를 추가할 수 있으며, 그러면 세 역할을 동시에 보유할 수도 있습니다.
 
 ```sql
-select id, email, login_id, name, created_at
-from public.profiles
-where role = 'host'
-  and host_approval_status = 'pending'
-order by created_at asc;
+insert into public.account_roles (profile_id, role, login_id)
+select profile_id, 'admin', '새_관리자_로그인_아이디'
+from public.account_roles
+where login_id = '기존_테스터_또는_호스트_아이디'
+on conflict (profile_id, role) do nothing;
 ```
 
-테스터와 호스트는 서로 다른 Supabase Auth 사용자입니다. 따라서 같은 사람이 두 역할을 모두 사용하려면 역할별로 각각 회원가입해야 하며, Supabase Auth의 이메일 고유성 때문에 서로 다른 이메일 주소가 필요합니다.
+이후 `/admin/login`에서 새 관리자 아이디와 기존 계정 비밀번호로 로그인합니다. 관리자 페이지를 확장할 때는 화면 검사뿐 아니라 관리 대상 테이블의 RLS에도 `account_roles.role = 'admin'` 조건을 추가해야 합니다.
 
-## 시작페이지 광고 배너
+## 국세청 사업자등록 확인 API
 
-`migrations/20260801_home_banners.sql`도 SQL Editor에서 한 번 실행해야 합니다.
-샘플 데이터는 자동으로 추가하지 않으며, `banners` 테이블에 관리자가 등록한
-활성 배너만 시작페이지에 표시됩니다.
+1. 공공데이터포털에서 **국세청_사업자등록정보 진위확인 및 상태조회 서비스** 활용신청을 합니다.
+2. 발급된 일반 인증키를 로컬 `.env.local`과 배포 서버에만 저장합니다. Encoding/Decoding 형태를 모두 처리합니다.
+3. 실제 키는 Git에 커밋하면 안 됩니다.
 
-관리자 페이지에서 사용할 주요 필드는 다음과 같습니다.
-
-- `title`: 배너 제목(필수)
-- `description`: 설명
-- `image_url`: Supabase Storage 공개 URL 또는 외부 이미지 URL
-- `link_url`: 버튼을 눌렀을 때 이동할 주소
-- `button_label`: 버튼 문구. 비어 있으면 `자세히 보기`
-- `background_color`, `text_color`: 이미지가 없거나 로딩 중일 때 사용할 색상
-- `is_active`: 실제 노출 여부
-- `display_order`: 작은 숫자가 먼저 노출
-- `starts_at`, `ends_at`: 예약 노출 기간. 비워두면 시작/종료 제한 없음
-
-관리자 페이지의 목록 조회·등록·수정·삭제는 `profiles.role = 'admin'`인 사용자만
-RLS 정책을 통과합니다. 브라우저 코드에는 절대로 Supabase service role key를 넣지 마세요.
-
-관리자 페이지에서 등록할 때는 아래 형태로 Supabase 클라이언트를 사용하면 됩니다.
-
-```ts
-// 관리자 로그인 세션이 있는 브라우저에서 실행합니다.
-// 처음에는 is_active: false로 저장해 초안으로 만든 뒤 활성화하는 방식을 권장합니다.
-const { error } = await supabase.from("banners").insert({
-  title: form.title,
-  description: form.description || null,
-  image_url: form.imageUrl || null,
-  link_url: form.linkUrl || null,
-  button_label: form.buttonLabel || null,
-  background_color: form.backgroundColor || "#2563eb",
-  text_color: form.textColor || "#ffffff",
-  placement: "home",
-  is_active: false,
-  display_order: Number(form.displayOrder) || 0,
-  starts_at: form.startsAt || null,
-  ends_at: form.endsAt || null,
-  created_by: user.id,
-});
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+NTS_BUSINESS_API_KEY=...
 ```
+
+기업 호스트가 이메일 인증 후 처음 호스트 홈에 접속하면 `/api/business/verify`가 국세청의 진위확인과 상태조회를 요청합니다. 브라우저에는 국세청 키나 Supabase service role 키가 노출되지 않습니다.

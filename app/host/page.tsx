@@ -8,6 +8,7 @@ import {
   getCurrentProfile,
   isApprovedHost,
   logout,
+  requestBusinessVerification,
 } from "../../lib/supabase/profiles";
 import { getMyTests } from "../../lib/supabase/tests";
 import type {
@@ -74,7 +75,15 @@ export default function HostPage() {
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
 
   const loadHostData = useCallback(async () => {
-    const currentProfile = await getCurrentProfile(supabase, "host");
+    let currentProfile = await getCurrentProfile(supabase, "host");
+
+    if (
+      currentProfile?.host_type === "business" &&
+      currentProfile.business_verification_status === "pending"
+    ) {
+      await requestBusinessVerification(supabase);
+      currentProfile = await getCurrentProfile(supabase, "host");
+    }
 
     setProfile(currentProfile);
 
@@ -108,12 +117,13 @@ export default function HostPage() {
   }, [loadHostData]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("auth") !== "login") {
+    const requestedMode = new URLSearchParams(window.location.search).get("auth");
+    if (requestedMode !== "login" && requestedMode !== "signup") {
       return;
     }
 
     const timerId = window.setTimeout(() => {
-      setAuthInitialMode("login");
+      setAuthInitialMode(requestedMode);
       setAuthModalOpen(true);
       window.history.replaceState({}, "", "/host");
     }, 0);
@@ -192,12 +202,19 @@ export default function HostPage() {
   };
 
   const handleSwitchToTester = async () => {
+    if (profile?.roles.includes("tester")) {
+      setMenuOpen(false);
+      router.push("/tests");
+      return;
+    }
+
+    const targetAuthMode: AuthMode = profile ? "signup" : "login";
     await logout(supabase);
     setProfile(null);
     setTests([]);
     setApplications([]);
     setMenuOpen(false);
-    router.push("/tests?auth=login");
+    router.push(`/tests?auth=${targetAuthMode}`);
   };
   if (loading) {
     return (
@@ -405,7 +422,11 @@ export default function HostPage() {
               <p className="mb-8 max-w-2xl text-lg leading-8 text-gray-600">
                 {hostCanAct
                   ? "현재 진행 중인 테스트의 참여 현황, 목표 달성률, 지원자 상태를 확인할 수 있습니다."
-                  : "호스트 가입이 완료되었습니다. 관리자 승인 전에도 호스트 홈은 둘러볼 수 있습니다."}
+                  : profile.host_type === "business"
+                    ? profile.business_verification_status === "failed"
+                      ? profile.business_verification_message ?? "사업자 정보 확인에 실패했습니다. 입력 정보를 확인해 주세요."
+                      : "국세청 사업자 정보 확인 전에도 호스트 홈은 둘러볼 수 있습니다."
+                    : "개인 호스트는 관리자 승인 전에도 호스트 홈을 둘러볼 수 있습니다."}
               </p>
 
               <button
@@ -413,7 +434,11 @@ export default function HostPage() {
                 disabled={!hostCanAct}
                 className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
               >
-                {hostCanAct ? "빠른 공고 등록" : "관리자 승인 대기 중"}
+                {hostCanAct
+                  ? "빠른 공고 등록"
+                  : profile.host_type === "business"
+                    ? "사업자 확인 대기 중"
+                    : "관리자 승인 대기 중"}
               </button>
             </>
           )}

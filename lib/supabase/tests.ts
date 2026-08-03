@@ -44,12 +44,9 @@ export async function createTest(
   supabase: SupabaseClient,
   input: CreateTestInput
 ): Promise<{ ok: boolean; message: string }> {
-  const profile = await getCurrentProfile(supabase);
+  const profile = await getCurrentProfile(supabase, "host");
 
   if (!profile) return { ok: false, message: "로그인 후 등록할 수 있습니다." };
-  if (profile.role !== "host") {
-    return { ok: false, message: "호스트 계정만 테스트를 등록할 수 있습니다." };
-  }
   if (!isApprovedHost(profile)) {
     return { ok: false, message: "관리자 승인 후 테스트를 등록할 수 있습니다." };
   }

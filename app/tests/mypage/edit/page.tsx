@@ -25,7 +25,7 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const loadProfile = useCallback(async () => {
-    const currentProfile = await getCurrentProfile(supabase);
+    const currentProfile = await getCurrentProfile(supabase, "tester");
     setProfile(currentProfile);
 
     if (currentProfile) {
@@ -39,7 +39,8 @@ export default function EditProfilePage() {
   }, [supabase]);
 
   useEffect(() => {
-    void loadProfile();
+    const timerId = window.setTimeout(() => void loadProfile(), 0);
+    return () => window.clearTimeout(timerId);
   }, [loadProfile]);
 
   // 저장하면 profiles 테이블에 반영되고, 이후 지원 폼에 이 값들이 자동으로 채워집니다.
@@ -87,6 +88,7 @@ export default function EditProfilePage() {
         {authModalOpen && (
           <AuthModal
             initialMode={authInitialMode}
+            accountRole="tester"
             onClose={() => setAuthModalOpen(false)}
             onAuthSuccess={loadProfile}
           />

@@ -11,12 +11,9 @@ export async function createApplication(
   supabase: SupabaseClient,
   input: CreateApplicationInput
 ): Promise<{ ok: boolean; message: string }> {
-  const profile = await getCurrentProfile(supabase);
+  const profile = await getCurrentProfile(supabase, "tester");
 
   if (!profile) return { ok: false, message: "로그인 후 지원할 수 있습니다." };
-  if (profile.role !== "tester") {
-    return { ok: false, message: "테스터 계정만 지원할 수 있습니다." };
-  }
   if (!input.applicantName.trim()) {
     return { ok: false, message: "이름을 입력해 주세요." };
   }

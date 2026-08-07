@@ -4,7 +4,10 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/client";
-import { getCurrentProfile } from "../../../../lib/supabase/profiles";
+import {
+  getCurrentProfile,
+  isApprovedHost,
+} from "../../../../lib/supabase/profiles";
 import { createTest } from "../../../../lib/supabase/tests";
 import type { CreateTestInput, Profile } from "../../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../../components/AuthModal";
@@ -37,7 +40,7 @@ export default function NewHostTestPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const loadProfile = useCallback(async () => {
-    const currentProfile = await getCurrentProfile(supabase);
+    const currentProfile = await getCurrentProfile(supabase, "host");
     setProfile(currentProfile);
     setCheckingProfile(false);
   }, [supabase]);
@@ -62,6 +65,11 @@ export default function NewHostTestPage() {
 
     if (!profile) {
       openAuthModal("login");
+      return;
+    }
+
+    if (!isApprovedHost(profile)) {
+      alert("관리자 승인 후 테스트를 등록할 수 있습니다.");
       return;
     }
 
@@ -167,12 +175,30 @@ export default function NewHostTestPage() {
     );
   }
 
+  if (profile && !isApprovedHost(profile)) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#fbf9ff] px-6 text-center">
+        <p className="text-2xl font-black text-purple-700">호스트 승인 대기 중</p>
+        <p className="text-gray-600">
+          관리자 승인 후 새 테스트를 등록할 수 있습니다.
+        </p>
+        <Link
+          href="/host"
+          className="rounded-2xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-700"
+        >
+          호스트 홈으로
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#fbf9ff] px-6 py-12 text-gray-900">
       {authModalOpen && (
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="host"
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={async () => {
             setAuthModalOpen(false);

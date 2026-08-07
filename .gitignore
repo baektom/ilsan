@@ -23,4 +23,4 @@ yarn-error.log*
 pnpm-debug.log*
 
 # typescript
-*.tsbuildinfo
+*.tsbuildinfo.vs/

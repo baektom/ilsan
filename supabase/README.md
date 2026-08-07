@@ -5,7 +5,8 @@
 1. `migrations/20260801_role_accounts_and_host_approval.sql`
 2. `migrations/20260803_account_identity_and_host_types.sql`
 3. `migrations/20260803_linked_role_accounts.sql`
-4. 과거 배너 SQL을 실행했다면 `migrations/20260803_remove_home_banners.sql`
+4. `migrations/20260807_profile_contact_fields.sql`
+5. 과거 배너 SQL을 실행했다면 `migrations/20260803_remove_home_banners.sql`
 
 세 번째 SQL부터 계정은 다음 구조를 사용합니다.
 

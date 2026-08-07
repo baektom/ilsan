@@ -30,6 +30,8 @@ export default function ApplyPage() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // 프로필과 테스트 상세 정보를 같이 불러오고,
+  // 프로필에 저장된 이름/나이/지역/연락처로 지원 폼을 자동으로 채웁니다.
   const loadData = useCallback(async () => {
     const [currentProfile, testRow] = await Promise.all([
       getCurrentProfile(supabase, "tester"),
@@ -38,6 +40,9 @@ export default function ApplyPage() {
 
     setProfile(currentProfile);
     setApplicantName((prev) => prev || currentProfile?.name || "");
+    setAge((prev) => prev || (currentProfile?.age ? String(currentProfile.age) : ""));
+    setRegion((prev) => prev || currentProfile?.region || "");
+    setPhone((prev) => prev || currentProfile?.phone || "");
     setTest(testRow);
     setLoading(false);
   }, [supabase, params.id]);

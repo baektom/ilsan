@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AccountRole, AccountRoleRow, Profile } from "./types";
+import type {
+  AccountRole,
+  AccountRoleRow,
+  Profile,
+  UpdateProfileInput,
+} from "./types";
 
 export async function getCurrentUser(supabase: SupabaseClient) {
   const {
@@ -21,7 +26,7 @@ export async function getCurrentProfile(
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, email, name, login_id, role, host_approval_status, host_type, business_number, business_name, business_start_date, representative_name, business_verification_status, business_verified_at, business_verification_message"
+      "id, email, name, login_id, role, host_approval_status, host_type, business_number, business_name, business_start_date, representative_name, business_verification_status, business_verified_at, business_verification_message, age, region, phone"
     )
     .eq("id", user.id)
     .single();
@@ -85,6 +90,35 @@ export async function requestBusinessVerification(
     ok: response.ok,
     message: result.message ?? "사업자등록 확인 결과를 불러오지 못했습니다.",
   };
+}
+
+// 마이페이지 "프로필 수정"에서 사용합니다.
+// 여기서 저장한 이름/나이/지역/연락처는 지원 페이지 폼에 자동으로 채워집니다.
+export async function updateProfile(
+  supabase: SupabaseClient,
+  input: UpdateProfileInput
+): Promise<{ ok: boolean; message: string }> {
+  const user = await getCurrentUser(supabase);
+
+  if (!user) {
+    return { ok: false, message: "로그인이 필요합니다." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      name: input.name,
+      age: input.age,
+      region: input.region,
+      phone: input.phone,
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    return { ok: false, message: "프로필 저장에 실패했습니다. 잠시 후 다시 시도해주세요." };
+  }
+
+  return { ok: true, message: "프로필이 저장되었습니다." };
 }
 
 export async function logout(supabase: SupabaseClient) {

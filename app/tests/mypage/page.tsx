@@ -165,13 +165,16 @@ export default function TesterMyPage() {
                 </p>
               )}
               <p className="mt-1 text-sm text-gray-500">{profile.email}</p>
+              <p className="mt-3 text-sm text-gray-500">
+                {profile.age ? `${profile.age}세` : "나이 미입력"} ·{" "}
+                {profile.region || "지역 미입력"} ·{" "}
+                {profile.phone || "연락처 미입력"}
+              </p>
             </div>
 
             <div className="flex h-fit gap-2">
               <button
-                onClick={() =>
-                  alert("다음 단계에서 Supabase 프로필 수정 기능을 연결할 예정입니다.")
-                }
+                onClick={() => router.push("/tests/mypage/edit")}
                 className="rounded-2xl border border-blue-200 bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50"
               >
                 프로필 수정

@@ -8,7 +8,10 @@ import {
   getApplicationsForHostTests,
   updateApplicationStatus,
 } from "../../../lib/supabase/applications";
-import { getCurrentProfile } from "../../../lib/supabase/profiles";
+import {
+  getCurrentProfile,
+  isApprovedHost,
+} from "../../../lib/supabase/profiles";
 import { getMyTests } from "../../../lib/supabase/tests";
 import type {
   ApplicationRow,
@@ -48,10 +51,10 @@ function HostApplicantsContent() {
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
 
   const loadData = useCallback(async () => {
-    const currentProfile = await getCurrentProfile(supabase);
+    const currentProfile = await getCurrentProfile(supabase, "host");
     setProfile(currentProfile);
 
-    if (!currentProfile) {
+    if (!currentProfile || !isApprovedHost(currentProfile)) {
       setTests([]);
       setApplications([]);
       setLoading(false);
@@ -128,12 +131,30 @@ function HostApplicantsContent() {
     );
   }
 
+  if (profile && !isApprovedHost(profile)) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#fbf9ff] px-6 text-center">
+        <p className="text-2xl font-black text-purple-700">호스트 승인 대기 중</p>
+        <p className="text-gray-600">
+          관리자 승인 후 지원자를 확인하고 관리할 수 있습니다.
+        </p>
+        <Link
+          href="/host"
+          className="rounded-2xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-700"
+        >
+          호스트 홈으로
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#fbf9ff] px-6 py-12 text-gray-900">
       {authModalOpen && (
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="host"
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={async () => {
             setAuthModalOpen(false);

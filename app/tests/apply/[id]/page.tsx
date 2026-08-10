@@ -34,7 +34,7 @@ export default function ApplyPage() {
   // 프로필에 저장된 이름/나이/지역/연락처로 지원 폼을 자동으로 채웁니다.
   const loadData = useCallback(async () => {
     const [currentProfile, testRow] = await Promise.all([
-      getCurrentProfile(supabase),
+      getCurrentProfile(supabase, "tester"),
       getTestById(supabase, params.id),
     ]);
 
@@ -126,6 +126,7 @@ export default function ApplyPage() {
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="tester"
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={async () => {
             setAuthModalOpen(false);

@@ -1,4 +1,28 @@
-export type UserRole = "tester" | "host" | null;
+export type AccountRole = "tester" | "host" | "admin";
+
+export type UserRole = AccountRole | null;
+
+export type HostApprovalStatus =
+  | "not_applicable"
+  | "pending"
+  | "approved"
+  | "rejected";
+
+export type HostType = "individual" | "business" | null;
+
+export type BusinessVerificationStatus =
+  | "not_applicable"
+  | "pending"
+  | "verified"
+  | "failed";
+
+export type AccountRoleRow = {
+  id: string;
+  profile_id: string;
+  role: AccountRole;
+  login_id: string;
+  created_at: string;
+};
 
 export type TestStatus = "모집중" | "마감";
 
@@ -10,6 +34,16 @@ export type Profile = {
   name: string | null;
   login_id: string | null;
   role: UserRole;
+  roles: AccountRole[];
+  host_approval_status: HostApprovalStatus;
+  host_type: HostType;
+  business_number: string | null;
+  business_name: string | null;
+  business_start_date: string | null;
+  representative_name: string | null;
+  business_verification_status: BusinessVerificationStatus;
+  business_verified_at: string | null;
+  business_verification_message: string | null;
   age: number | null;
   region: string | null;
   phone: string | null;

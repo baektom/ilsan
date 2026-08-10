@@ -7,7 +7,11 @@ import {
   getApplicationsForHostTests,
   updateApplicationStatus,
 } from "../../../lib/supabase/applications";
-import { getCurrentProfile, logout } from "../../../lib/supabase/profiles";
+import {
+  getCurrentProfile,
+  isApprovedHost,
+  logout,
+} from "../../../lib/supabase/profiles";
 import { getMyTests } from "../../../lib/supabase/tests";
 import type {
   ApplicationRow,
@@ -62,10 +66,10 @@ export default function HostMyPage() {
   const loadProfile = useCallback(async () => {
     setPageError("");
     try {
-      const currentProfile = await getCurrentProfile(supabase);
+      const currentProfile = await getCurrentProfile(supabase, "host");
       setProfile(currentProfile);
 
-      if (!currentProfile) {
+      if (!currentProfile || !isApprovedHost(currentProfile)) {
         setTests([]);
         setApplicants([]);
         setSelectedTestId(null);
@@ -162,10 +166,29 @@ export default function HostMyPage() {
         {authModalOpen && (
           <AuthModal
             initialMode={authInitialMode}
+            accountRole="host"
             onClose={() => setAuthModalOpen(false)}
             onAuthSuccess={loadProfile}
           />
         )}
+      </main>
+    );
+  }
+
+  if (!isApprovedHost(profile)) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#fbf9ff] px-6 text-center">
+        <p className="text-2xl font-black text-purple-700">호스트 승인 대기 중</p>
+        <p className="max-w-lg text-gray-600">
+          관리자 승인 전에는 테스트 등록과 지원자 관리 기능을 이용할 수 없습니다.
+          호스트 홈은 자유롭게 둘러볼 수 있습니다.
+        </p>
+        <button
+          onClick={() => router.push("/host")}
+          className="rounded-2xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-700"
+        >
+          호스트 홈으로
+        </button>
       </main>
     );
   }

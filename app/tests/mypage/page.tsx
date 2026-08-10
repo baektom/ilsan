@@ -54,7 +54,7 @@ export default function TesterMyPage() {
   const loadProfile = useCallback(async () => {
     setPageError("");
     try {
-      const currentProfile = await getCurrentProfile(supabase);
+      const currentProfile = await getCurrentProfile(supabase, "tester");
       setProfile(currentProfile);
       setAppliedTests(currentProfile ? await getMyApplications(supabase) : []);
     } catch (error) {
@@ -114,6 +114,7 @@ export default function TesterMyPage() {
         {authModalOpen && (
           <AuthModal
             initialMode={authInitialMode}
+            accountRole="tester"
             onClose={() => setAuthModalOpen(false)}
             onAuthSuccess={loadProfile}
           />

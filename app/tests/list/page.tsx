@@ -38,7 +38,7 @@ export default function TestListPage() {
   // getAllTests가 created_at 최신순으로 내려주기 때문에 별도 정렬 없이 그대로 씁니다.
   const loadData = useCallback(async () => {
     const [currentProfile, testRows] = await Promise.all([
-      getCurrentProfile(supabase),
+      getCurrentProfile(supabase, "tester"),
       getAllTests(supabase),
     ]);
 
@@ -48,7 +48,8 @@ export default function TestListPage() {
   }, [supabase]);
 
   useEffect(() => {
-    void loadData();
+    const timerId = window.setTimeout(() => void loadData(), 0);
+    return () => window.clearTimeout(timerId);
   }, [loadData]);
 
   const visibleTests = useMemo(() => {
@@ -184,6 +185,7 @@ export default function TestListPage() {
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="tester"
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={async () => {
             setAuthModalOpen(false);

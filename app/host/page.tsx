@@ -17,6 +17,7 @@ import type {
   TestRow,
 } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
+import HeroCarousel from "../components/HeroCarousel";
 
 type RegisteredTestView = {
   id: string;
@@ -385,64 +386,197 @@ export default function HostPage() {
       )}
 
       <section className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-8 rounded-[36px] bg-white p-8 shadow-sm ring-1 ring-purple-100 md:p-10">
-          <p className="mb-4 inline-block rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-700">
-            호스트 홈
-          </p>
+        <div className="mb-8">
+  <HeroCarousel
+    accentColor="purple"
+    slides={[
+      <div
+        key="intro"
+        className="flex h-full min-h-[520px] flex-col bg-white p-8 shadow-sm ring-1 ring-purple-100 md:min-h-[430px] md:p-10"
+      >
+        <p className="mb-4 inline-block rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-700">
+          호스트 홈
+        </p>
 
-          <h1 className="mb-4 text-4xl font-black md:text-5xl">
-            베타테스터 모집 현황을 한눈에 확인하세요
-          </h1>
+        <h1 className="mb-4 text-4xl font-black md:text-5xl">
+          베타테스터 모집 현황을 한눈에 확인하세요
+        </h1>
 
-          {!profile ? (
-            <>
-              <p className="mb-8 max-w-2xl text-lg leading-8 text-gray-600">
-                로그인하지 않아도 호스트 기능을 둘러볼 수 있습니다. 실제 테스트
-                등록과 신청자 관리는 로그인 후 이용할 수 있습니다.
-              </p>
+        {!profile ? (
+          <>
+            <p className="mb-8 max-w-2xl text-lg leading-8 text-gray-600">
+              로그인하지 않아도 호스트 기능을 둘러볼 수 있습니다. 실제
+              테스트 등록과 신청자 관리는 로그인 후 이용할 수
+              있습니다.
+            </p>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={() => openAuthModal("login")}
-                  className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white hover:bg-purple-700"
-                >
-                  로그인하고 시작하기
-                </button>
-
-                <button
-                  onClick={() => openAuthModal("signup")}
-                  className="rounded-2xl border border-purple-200 bg-white px-6 py-4 font-bold text-purple-700 hover:bg-purple-50"
-                >
-                  회원가입
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="mb-8 max-w-2xl text-lg leading-8 text-gray-600">
-                {hostCanAct
-                  ? "현재 진행 중인 테스트의 참여 현황, 목표 달성률, 지원자 상태를 확인할 수 있습니다."
-                  : profile.host_type === "business"
-                    ? profile.business_verification_status === "failed"
-                      ? profile.business_verification_message ?? "사업자 정보 확인에 실패했습니다. 입력 정보를 확인해 주세요."
-                      : "국세청 사업자 정보 확인 전에도 호스트 홈은 둘러볼 수 있습니다."
-                    : "개인 호스트는 관리자 승인 전에도 호스트 홈을 둘러볼 수 있습니다."}
-              </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => openAuthModal("login")}
+                className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white hover:bg-purple-700"
+              >
+                로그인하고 시작하기
+              </button>
 
               <button
+                onClick={() => openAuthModal("signup")}
+                className="rounded-2xl border border-purple-200 bg-white px-6 py-4 font-bold text-purple-700 hover:bg-purple-50"
+              >
+                회원가입
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mb-8 max-w-2xl text-lg leading-8 text-gray-600">
+              {hostCanAct
+                ? "현재 진행 중인 테스트의 참여 현황, 목표 달성률, 지원자 상태를 확인할 수 있습니다."
+                : profile.host_type === "business"
+                  ? profile.business_verification_status === "failed"
+                    ? profile.business_verification_message ??
+                      "사업자 정보 확인에 실패했습니다. 입력 정보를 확인해 주세요."
+                    : "국세청 사업자 정보 확인 전에도 호스트 홈은 둘러볼 수 있습니다."
+                  : "개인 호스트는 관리자 승인 전에도 호스트 홈을 둘러볼 수 있습니다."}
+            </p>
+
+            <button
+              onClick={goToCreateTest}
+              disabled={!hostCanAct}
+              className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
+            >
+              {hostCanAct
+                ? "빠른 공고 등록"
+                : profile.host_type === "business"
+                  ? "사업자 확인 대기 중"
+                  : "관리자 승인 대기 중"}
+            </button>
+          </>
+        )}
+              <div className="mt-auto grid gap-3 rounded-[28px] border border-purple-100 bg-gradient-to-r from-purple-50 via-white to-pink-50 p-5 sm:grid-cols-3">
+          <div className="rounded-2xl bg-white/90 p-4 shadow-sm">
+            <p className="text-xs font-bold text-purple-600">
+              등록부터 관리까지
+            </p>
+            <p className="mt-2 text-lg font-black text-gray-900">
+              공고를 간편하게 등록
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white/90 p-4 shadow-sm">
+            <p className="text-xs font-bold text-pink-600">
+              지원자 현황
+            </p>
+            <p className="mt-2 text-lg font-black text-gray-900">
+              한눈에 확인하고 관리
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center rounded-2xl bg-purple-600 p-4 text-4xl shadow-lg shadow-purple-200">
+            🚀
+          </div>
+        </div>
+      </div>,
+
+      <div
+        key="fee-support"
+        className="flex h-full min-h-[520px] flex-col bg-white p-8 shadow-sm ring-1 ring-purple-100 md:min-h-[430px] md:p-10"
+      >
+       <div className="grid flex-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div>
+            <p className="mb-4 inline-block rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-700">
+              EVENT
+            </p>
+
+            <h1 className="mb-5 text-4xl font-black leading-tight md:text-5xl">
+              첫 공고 등록 시
+              <br />
+              등록요금 전액 지원
+            </h1>
+
+            <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+              처음 공고를 등록하는 호스트에게 등록요금을 최대
+              100만원까지 전액 지원해드립니다.
+            </p>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
                 onClick={goToCreateTest}
-                disabled={!hostCanAct}
+                disabled={!!profile && !hostCanAct}
                 className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
               >
-                {hostCanAct
-                  ? "빠른 공고 등록"
-                  : profile.host_type === "business"
-                    ? "사업자 확인 대기 중"
-                    : "관리자 승인 대기 중"}
+                지금 공고 등록하기
               </button>
-            </>
-          )}
+            </div>
+          </div>
+
+          <div className="flex h-full flex-col justify-between rounded-[32px] border border-purple-100 bg-purple-50 p-6 shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl">
+              🎉
+            </div>
+            <p className="text-sm font-bold text-purple-600">
+              첫 공고 등록 이벤트
+            </p>
+            <p className="mt-2 text-2xl font-black text-purple-700">
+              등록요금 전액 지원 (최대 100만원)
+            </p>
+            <p className="mt-3 text-sm text-purple-900/70">
+              첫 공고 등록 시에만 적용되는 혜택입니다.
+            </p>
+          </div>
         </div>
+      </div>,
+
+      <div
+        key="tester-milestone"
+        className="flex h-full min-h-[520px] flex-col bg-white p-8 shadow-sm ring-1 ring-purple-100 md:min-h-[430px] md:p-10"
+      >
+        <div className="grid flex-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div>
+            <p className="mb-4 inline-block rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-700">
+              EVENT
+            </p>
+
+            <h1 className="mb-5 text-4xl font-black leading-tight md:text-5xl">
+              테스터 누적 1000명 유치 시
+              <br />
+              현금 지원
+            </h1>
+
+            <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+              내 공고에 누적 1000명의 테스터를 유치하면 현금 지원
+              혜택을 받을 수 있습니다.
+            </p>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={goToCreateTest}
+                disabled={!!profile && !hostCanAct}
+                className="rounded-2xl bg-purple-600 px-6 py-4 font-bold text-white shadow-lg shadow-purple-100 hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-purple-300"
+              >
+                공고 등록하고 참여시키기
+              </button>
+            </div>
+          </div>
+
+          <div className="flex h-full flex-col justify-between rounded-[32px] border border-purple-100 bg-purple-50 p-6 shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl">
+              🏆
+            </div>
+            <p className="text-sm font-bold text-purple-600">
+              테스터 유치 이벤트
+            </p>
+            <p className="mt-2 text-2xl font-black text-purple-700">
+              누적 1000명 달성 시 현금 지원
+            </p>
+            <p className="mt-3 text-sm text-purple-900/70">
+              공고를 통해 유치한 테스터 수가 누적으로 합산됩니다.
+            </p>
+          </div>
+        </div>
+      </div>,
+    ]}
+  />
+</div>
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-6 shadow-sm">

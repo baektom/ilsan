@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
+import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
+import { getAllTests } from "../../lib/supabase/tests";
+import type { Profile, TestRow } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
 
-type Profile = {
-  id: string;
-  email: string;
-  name: string | null;
-  login_id: string | null;
-  role: "tester" | "host" | null;
-};
-
 type TestItem = {
-  id: number;
+  id: string;
   category: string;
   title: string;
   company: string;
@@ -24,87 +19,42 @@ type TestItem = {
   location: string;
   description: string;
   badge: string;
-  applicants: number;
   imageEmoji: string;
 };
 
-const testList: TestItem[] = [
-  {
-    id: 1,
-    category: "화장품",
-    title: "신규 수분크림 7일 사용 테스트",
-    company: "루미코스",
-    reward: "제품 제공 + 10,000원",
-    people: "30명 모집",
-    period: "2026.07.10 ~ 2026.07.17",
-    location: "전국 배송",
-    description:
-      "신규 수분크림을 7일간 사용하고 피부 자극, 보습감, 발림성에 대한 간단한 설문을 작성하는 테스트입니다.",
+// 카테고리별 기본 아이콘입니다.
+// 나중에 UI 담당자가 이미지나 아이콘 컴포넌트로 바꿔도 됩니다.
+function getCategoryEmoji(category: string) {
+  if (category === "화장품") return "🧴";
+  if (category === "게임") return "🎮";
+  if (category === "시제품") return "📦";
+  if (category === "설문조사") return "📝";
+  if (category === "식품") return "🥤";
+
+  return "🎁";
+}
+
+// Supabase tests 테이블 데이터를 현재 테스터 UI 카드 형태로 바꿔주는 함수입니다.
+function mapTestRowToItem(test: TestRow): TestItem {
+  const period =
+    test.period_start && test.period_end
+      ? `${test.period_start} ~ ${test.period_end}`
+      : "상시 모집";
+
+  return {
+    id: test.id,
+    category: test.category,
+    title: test.title,
+    company: test.company_name ?? "등록 호스트",
+    reward: test.reward,
+    people: `${test.target_people}명 모집`,
+    period,
+    location: test.location ?? "진행 방식 미정",
+    description: test.description,
     badge: "NEW",
-    applicants: 18,
-    imageEmoji: "🧴",
-  },
-  {
-    id: 2,
-    category: "게임",
-    title: "모바일 퍼즐게임 베타 플레이 테스트",
-    company: "플레이몽",
-    reward: "20,000원",
-    people: "50명 모집",
-    period: "2026.07.12 ~ 2026.07.15",
-    location: "온라인",
-    description:
-      "출시 전 모바일 퍼즐게임을 플레이하고 난이도, 재미, 버그 여부에 대한 피드백을 제출하는 테스트입니다.",
-    badge: "인기",
-    applicants: 42,
-    imageEmoji: "🎮",
-  },
-  {
-    id: 3,
-    category: "시제품",
-    title: "생활용품 사용성 테스트",
-    company: "데일리랩",
-    reward: "제품 제공 + 15,000원",
-    people: "20명 모집",
-    period: "2026.07.20 ~ 2026.07.27",
-    location: "서울/경기",
-    description:
-      "새로운 생활용품 시제품을 실제 환경에서 사용해보고 불편한 점과 개선점을 제출하는 테스트입니다.",
-    badge: "NEW",
-    applicants: 9,
-    imageEmoji: "📦",
-  },
-  {
-    id: 4,
-    category: "설문조사",
-    title: "대학생 소비 패턴 설문조사",
-    company: "인사이트리서치",
-    reward: "5,000원",
-    people: "100명 모집",
-    period: "2026.07.05 ~ 2026.07.09",
-    location: "온라인",
-    description:
-      "대학생의 소비 습관, 앱 사용 패턴, 브랜드 선호도를 조사하는 10분 내외의 온라인 설문입니다.",
-    badge: "인기",
-    applicants: 87,
-    imageEmoji: "📝",
-  },
-  {
-    id: 5,
-    category: "식품",
-    title: "신규 단백질 음료 맛 평가 테스트",
-    company: "핏드링크",
-    reward: "제품 제공 + 8,000원",
-    people: "40명 모집",
-    period: "2026.07.18 ~ 2026.07.22",
-    location: "전국 배송",
-    description:
-      "신규 단백질 음료를 시음하고 맛, 향, 패키지 만족도에 대한 피드백을 작성하는 테스트입니다.",
-    badge: "NEW",
-    applicants: 25,
-    imageEmoji: "🥤",
-  },
-];
+    imageEmoji: getCategoryEmoji(test.category),
+  };
+}
 
 export default function TesterPage() {
   const router = useRouter();
@@ -113,6 +63,7 @@ export default function TesterPage() {
   const noticeListRef = useRef<HTMLDivElement | null>(null);
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [testList, setTestList] = useState<TestItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -122,38 +73,41 @@ export default function TesterPage() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [searchText, setSearchText] = useState("");
 
-  const loadProfile = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const [pendingTest, setPendingTest] = useState<TestItem | null>(null);
 
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
+  // 현재 로그인 사용자 정보와 Supabase에 저장된 테스트 공고를 같이 불러옵니다.
+  const loadPageData = useCallback(async () => {
+    const currentProfile = await getCurrentProfile(supabase, "tester");
+    const testRows = await getAllTests(supabase);
 
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, email, name, login_id, role")
-      .eq("id", user.id)
-      .single();
-
-    if (data) {
-      setProfile(data as Profile);
-    }
-
+    setProfile(currentProfile);
+    setTestList(testRows.map(mapTestRowToItem));
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      void loadProfile();
+      void loadPageData();
     }, 0);
 
     return () => {
       window.clearTimeout(timerId);
     };
+  }, [loadPageData]);
+
+  useEffect(() => {
+    const requestedMode = new URLSearchParams(window.location.search).get("auth");
+    if (requestedMode !== "login" && requestedMode !== "signup") {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setAuthInitialMode(requestedMode);
+      setAuthModalOpen(true);
+      window.history.replaceState({}, "", "/tests");
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, []);
 
   const openAuthModal = (mode: AuthMode) => {
@@ -162,10 +116,8 @@ export default function TesterPage() {
     setMenuOpen(false);
   };
 
-  const newTests = testList.filter((test) => test.badge === "NEW");
-  const popularTests = [...testList]
-    .sort((a, b) => b.applicants - a.applicants)
-    .slice(0, 3);
+  const newTests = testList.slice(0, 3);
+  const popularTests = testList.slice(0, 3);
 
   const filteredTests = useMemo(() => {
     return testList.filter((test) => {
@@ -179,12 +131,26 @@ export default function TesterPage() {
 
       return categoryMatched && searchMatched;
     });
-  }, [selectedCategory, searchText]);
+  }, [selectedCategory, searchText, testList]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout(supabase);
     setProfile(null);
     setMenuOpen(false);
+  };
+
+  const handleSwitchToHost = async () => {
+    if (profile?.roles.includes("host")) {
+      setMenuOpen(false);
+      router.push("/host");
+      return;
+    }
+
+    const targetAuthMode: AuthMode = profile ? "signup" : "login";
+    await logout(supabase);
+    setProfile(null);
+    setMenuOpen(false);
+    router.push(`/host?auth=${targetAuthMode}`);
   };
 
   const moveToNoticeList = () => {
@@ -198,15 +164,16 @@ export default function TesterPage() {
     }, 100);
   };
 
-  const handleApply = (title: string) => {
+  // 지원하기 버튼을 눌렀을 때 실행됩니다.
+  // 로그인 전이면 로그인창을 열고, 로그인 후면 지원 페이지로 이동합니다.
+  const handleApply = (test: TestItem) => {
     if (!profile) {
+      setPendingTest(test);
       openAuthModal("login");
       return;
     }
 
-    alert(
-      `${title}\n\n다음 단계에서 Supabase에 신청 정보를 저장하도록 만들 예정입니다.`
-    );
+    router.push(`/tests/apply/${test.id}`);
   };
 
   if (loading) {
@@ -230,7 +197,7 @@ export default function TesterPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("/host")}
+              onClick={handleSwitchToHost}
               className="flex h-11 w-11 items-center justify-center rounded-2xl border border-purple-100 bg-purple-50 text-xl text-purple-700 transition hover:bg-purple-100"
               aria-label="호스트로 전환하기"
               title="호스트로 전환하기"
@@ -309,6 +276,7 @@ export default function TesterPage() {
                     return;
                   }
 
+                  setMenuOpen(false);
                   router.push("/tests/mypage");
                 }}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
@@ -361,8 +329,17 @@ export default function TesterPage() {
         <AuthModal
           key={authInitialMode}
           initialMode={authInitialMode}
+          accountRole="tester"
           onClose={() => setAuthModalOpen(false)}
-          onAuthSuccess={loadProfile}
+          onAuthSuccess={async () => {
+            await loadPageData();
+
+            if (pendingTest) {
+              const testId = pendingTest.id;
+              setPendingTest(null);
+              router.push(`/tests/apply/${testId}`);
+            }
+          }}
         />
       )}
 
@@ -380,10 +357,17 @@ export default function TesterPage() {
                 가장 먼저 확인해보세요
               </h1>
 
-              <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
-                로그인하지 않아도 공고는 둘러볼 수 있습니다. 신청하려면
-                로그인 또는 회원가입이 필요합니다.
-              </p>
+              {profile ? (
+                <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+                  {profile.name ?? "테스터"}님에게 맞는 테스트를 둘러보고,
+                  마음에 드는 공고에 바로 지원해보세요.
+                </p>
+              ) : (
+                <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+                  로그인하지 않아도 공고는 둘러볼 수 있습니다. 신청하려면
+                  로그인 또는 회원가입이 필요합니다.
+                </p>
+              )}
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -404,22 +388,55 @@ export default function TesterPage() {
               </div>
             </div>
 
-            <div className="rounded-[32px] bg-gradient-to-br from-blue-100 via-purple-100 to-white p-6">
-              <div className="rounded-[28px] bg-white p-6 shadow-sm">
-                <p className="mb-3 text-sm font-bold text-gray-500">
-                  오늘의 추천
-                </p>
-                <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-3xl bg-blue-50 text-5xl">
-                  🎁
+            <div className="rounded-[32px] border border-blue-100 bg-white p-6 shadow-sm">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-blue-600">
+                    TESTER BOARD
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black">
+                    오늘의 테스트 현황
+                  </h2>
                 </div>
-                <h2 className="mb-3 text-2xl font-bold">
-                  제품 받고 피드백하면 보상까지
-                </h2>
-                <p className="leading-7 text-gray-600">
-                  현재 신청 가능한 테스트 {testList.length}개가 준비되어
-                  있습니다.
-                </p>
+
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-3xl">
+                  🔎
+                </div>
               </div>
+
+              <div className="grid gap-3">
+                <div className="rounded-2xl bg-blue-50 p-4">
+                  <p className="text-xs font-bold text-blue-600">
+                    신청 가능 공고
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-blue-700">
+                    {testList.length}개
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-purple-50 p-4">
+                  <p className="text-xs font-bold text-purple-600">
+                    새로 올라온 테스트
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-purple-700">
+                    {newTests.length}개
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-gray-50 p-4">
+                  <p className="text-xs font-bold text-gray-500">추천 행동</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-700">
+                    관심 있는 공고를 눌러 지원 조건을 확인해보세요.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={moveToNoticeList}
+                className="mt-5 w-full rounded-2xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-gray-700"
+              >
+                공고 목록 바로가기
+              </button>
             </div>
           </div>
         </div>
@@ -427,7 +444,9 @@ export default function TesterPage() {
         <section className="mb-12">
           <div className="mb-5 flex items-end justify-between">
             <div>
-              <p className="mb-2 text-sm font-bold text-blue-600">NEW TEST</p>
+              <p className="mb-2 text-sm font-bold text-blue-600">
+                NEW TEST
+              </p>
               <h2 className="text-2xl font-black">새롭게 공개된 테스트</h2>
             </div>
 
@@ -439,46 +458,56 @@ export default function TesterPage() {
             </button>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-3">
-            {newTests.map((test) => (
-              <article
-                key={test.id}
-                className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="mb-5 flex items-start justify-between">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-50 text-4xl">
-                    {test.imageEmoji}
+          {newTests.length === 0 ? (
+            <div className="rounded-3xl bg-white p-8 text-center text-gray-500 shadow-sm ring-1 ring-blue-100">
+              아직 등록된 테스트가 없습니다.
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-3">
+              {newTests.map((test) => (
+                <article
+                  key={test.id}
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-1 hover:shadow-lg"
+                >
+                  <div className="mb-5 flex items-start justify-between">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-50 text-4xl">
+                      {test.imageEmoji}
+                    </div>
+
+                    <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-black text-white">
+                      NEW
+                    </span>
                   </div>
 
-                  <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-black text-white">
-                    NEW
-                  </span>
-                </div>
+                  <p className="mb-2 text-sm font-bold text-blue-600">
+                    {test.category}
+                  </p>
 
-                <p className="mb-2 text-sm font-bold text-blue-600">
-                  {test.category}
-                </p>
+                  <h3 className="mb-3 text-xl font-black leading-snug">
+                    {test.title}
+                  </h3>
 
-                <h3 className="mb-3 text-xl font-black leading-snug">
-                  {test.title}
-                </h3>
+                  <p className="mb-4 text-sm text-gray-500">{test.company}</p>
 
-                <p className="mb-4 text-sm text-gray-500">{test.company}</p>
+                  <div className="mb-5 rounded-2xl bg-blue-50 p-4">
+                    <p className="text-xs text-gray-500">보상</p>
+                    <p className="font-bold text-blue-700">{test.reward}</p>
+                  </div>
 
-                <div className="mb-5 rounded-2xl bg-blue-50 p-4">
-                  <p className="text-xs text-gray-500">보상</p>
-                  <p className="font-bold text-blue-700">{test.reward}</p>
-                </div>
-
-                <button
-                  onClick={() => handleApply(test.title)}
-                  className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700"
-                >
-                  자세히 보기
-                </button>
-              </article>
-            ))}
-          </div>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleApply(test);
+                    }}
+                    className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700"
+                  >
+                    지원하기
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-12">
@@ -498,57 +527,67 @@ export default function TesterPage() {
             </button>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-3">
-            {popularTests.map((test, index) => (
-              <article
-                key={test.id}
-                className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-purple-100 transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="mb-5 flex items-start justify-between">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-50 text-4xl">
-                    {test.imageEmoji}
-                  </div>
-
-                  <span className="rounded-full bg-purple-600 px-3 py-1 text-xs font-black text-white">
-                    TOP {index + 1}
-                  </span>
-                </div>
-
-                <p className="mb-2 text-sm font-bold text-purple-600">
-                  {test.category}
-                </p>
-
-                <h3 className="mb-3 text-xl font-black leading-snug">
-                  {test.title}
-                </h3>
-
-                <p className="mb-4 text-sm text-gray-500">{test.company}</p>
-
-                <div className="mb-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-purple-50 p-4">
-                    <p className="text-xs text-gray-500">신청자</p>
-                    <p className="font-bold text-purple-700">
-                      {test.applicants}명
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-purple-50 p-4">
-                    <p className="text-xs text-gray-500">진행</p>
-                    <p className="font-bold text-purple-700">
-                      {test.location}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleApply(test.title)}
-                  className="w-full rounded-2xl bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700"
+          {popularTests.length === 0 ? (
+            <div className="rounded-3xl bg-white p-8 text-center text-gray-500 shadow-sm ring-1 ring-purple-100">
+              아직 인기 테스트가 없습니다.
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-3">
+              {popularTests.map((test, index) => (
+                <article
+                  key={test.id}
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-purple-100 transition hover:-translate-y-1 hover:shadow-lg"
                 >
-                  자세히 보기
-                </button>
-              </article>
-            ))}
-          </div>
+                  <div className="mb-5 flex items-start justify-between">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-50 text-4xl">
+                      {test.imageEmoji}
+                    </div>
+
+                    <span className="rounded-full bg-purple-600 px-3 py-1 text-xs font-black text-white">
+                      TOP {index + 1}
+                    </span>
+                  </div>
+
+                  <p className="mb-2 text-sm font-bold text-purple-600">
+                    {test.category}
+                  </p>
+
+                  <h3 className="mb-3 text-xl font-black leading-snug">
+                    {test.title}
+                  </h3>
+
+                  <p className="mb-4 text-sm text-gray-500">{test.company}</p>
+
+                  <div className="mb-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-purple-50 p-4">
+                      <p className="text-xs text-gray-500">모집</p>
+                      <p className="font-bold text-purple-700">
+                        {test.people}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-purple-50 p-4">
+                      <p className="text-xs text-gray-500">진행</p>
+                      <p className="font-bold text-purple-700">
+                        {test.location}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleApply(test);
+                    }}
+                    className="w-full rounded-2xl bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700"
+                  >
+                    지원하기
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section
@@ -556,7 +595,9 @@ export default function TesterPage() {
           className="scroll-mt-28 rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-gray-100"
         >
           <div className="mb-6">
-            <p className="mb-2 text-sm font-bold text-gray-500">NOTICE LIST</p>
+            <p className="mb-2 text-sm font-bold text-gray-500">
+              NOTICE LIST
+            </p>
             <h2 className="text-2xl font-black">공고 목록</h2>
           </div>
 
@@ -589,50 +630,66 @@ export default function TesterPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            {filteredTests.map((test) => (
-              <article
-                key={test.id}
-                className="rounded-3xl border border-gray-100 bg-white p-5 transition hover:border-blue-200 hover:bg-blue-50/40"
-              >
-                <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-                  <div className="flex gap-4">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-blue-50 text-4xl">
-                      {test.imageEmoji}
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
-                          {test.category}
-                        </span>
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                          {test.badge}
-                        </span>
+          {filteredTests.length === 0 ? (
+            <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center text-gray-500">
+              조건에 맞는 공고가 없습니다.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredTests.map((test) => (
+                <article
+                  key={test.id}
+                  onClick={() => router.push(`/tests/${test.id}`)}
+                  className="cursor-pointer rounded-3xl border border-gray-100 bg-white p-5 transition hover:border-blue-200 hover:bg-blue-50/40"
+                >
+                  <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+                    <div className="flex gap-4">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-blue-50 text-4xl">
+                        {test.imageEmoji}
                       </div>
 
-                      <h3 className="mb-1 text-lg font-black">{test.title}</h3>
+                      <div>
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
+                            {test.category}
+                          </span>
+                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                            {test.badge}
+                          </span>
+                        </div>
 
-                      <p className="text-sm text-gray-500">
-                        {test.company} · {test.location} · {test.period}
-                      </p>
+                        <h3 className="mb-1 text-lg font-black">
+                          {test.title}
+                        </h3>
+
+                        <p className="text-sm text-gray-500">
+                          {test.company} · {test.location} · {test.period}
+                        </p>
+
+                        <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                          {test.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 md:items-end">
+                      <p className="font-bold text-blue-700">{test.reward}</p>
+
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleApply(test);
+                        }}
+                        className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+                      >
+                        지원하기
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex flex-col gap-3 md:items-end">
-                    <p className="font-bold text-blue-700">{test.reward}</p>
-
-                    <button
-                      onClick={() => handleApply(test.title)}
-                      className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
-                    >
-                      신청하기
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </section>
     </main>

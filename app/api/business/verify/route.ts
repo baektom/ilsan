@@ -58,9 +58,9 @@ export async function POST(request: NextRequest) {
     .eq("role", "host")
     .maybeSingle();
   const { data, error: profileError } = await admin
-    .from("profiles")
+    .from("host_profiles")
     .select("host_type, business_number, business_name, business_start_date, representative_name, business_verification_status")
-    .eq("id", userData.user.id)
+    .eq("profile_id", userData.user.id)
     .single();
   const profile = data as BusinessProfile | null;
 
@@ -114,17 +114,17 @@ export async function POST(request: NextRequest) {
       ? "국세청 사업자 정보와 정상 사업 상태를 확인했습니다."
       : "입력 정보가 국세청 등록 정보와 일치하지 않거나 계속사업자가 아닙니다.";
 
-    await admin.from("profiles").update({
+    await admin.from("host_profiles").update({
       business_verification_status: verified ? "verified" : "failed",
       business_verified_at: verified ? new Date().toISOString() : null,
       business_verification_message: message,
-      host_approval_status: verified ? "approved" : "pending",
-    }).eq("id", userData.user.id);
+      approval_status: verified ? "approved" : "pending",
+    }).eq("profile_id", userData.user.id);
 
     return NextResponse.json({ ok: verified, message }, { status: verified ? 200 : 422 });
   } catch {
     const message = "국세청 API 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.";
-    await admin.from("profiles").update({ business_verification_message: message }).eq("id", userData.user.id);
+    await admin.from("host_profiles").update({ business_verification_message: message }).eq("profile_id", userData.user.id);
     return NextResponse.json({ ok: false, message }, { status: 502 });
   }
 }

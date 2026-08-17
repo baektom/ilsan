@@ -6,17 +6,23 @@
 2. `migrations/20260803_account_identity_and_host_types.sql`
 3. `migrations/20260803_linked_role_accounts.sql`
 4. `migrations/20260807_profile_contact_fields.sql`
-5. 과거 배너 SQL을 실행했다면 `migrations/20260803_remove_home_banners.sql`
+5. `migrations/20260817_business_host_account_isolation.sql`
+6. `migrations/20260817_role_specific_profiles.sql`
+7. 과거 배너 SQL을 실행했다면 `migrations/20260803_remove_home_banners.sql`
 
 세 번째 SQL부터 계정은 다음 구조를 사용합니다.
 
 - `auth.users`: 한 사람의 이메일 인증과 비밀번호를 담당합니다.
-- `profiles`: 한 사람의 공통 프로필과 호스트 검증 정보를 저장합니다.
+- `profiles`: 이메일·이름처럼 역할과 무관한 공통 정보만 저장합니다.
 - `account_roles`: 테스터·호스트·관리자 역할과 역할별 로그인 아이디를 저장합니다.
+- `tester_profiles`: 테스터의 나이·지역·연락처를 저장합니다.
+- `host_profiles`: 호스트 유형·승인 상태·사업자 검증 정보를 저장합니다.
 - 한 프로필은 `tester`, `host`, `admin` 역할을 동시에 가질 수 있습니다.
 - 역할별 로그인 아이디는 서로 달라야 하며 서비스 전체에서 중복될 수 없습니다.
 - 동일 인물이 개인 테스터와 개인 호스트 역할을 연결하면 이메일 인증과 비밀번호는 하나를 공유합니다.
 - 기업 호스트는 개인 역할 연결 대상에서 제외하고 별도 이메일 계정으로 가입합니다.
+- 기업 호스트 프로필에는 `host` 역할 하나만 존재하며 `tester`·`admin` 역할을 추가할 수 없습니다.
+- `account_profile_overview` 뷰에서 한 계정이 보유한 전체 역할과 역할별 아이디를 한눈에 확인할 수 있습니다.
 
 ## 기존 계정에 역할 연결
 
@@ -46,7 +52,7 @@ where id = (
 
 ## 관리자 역할 추가
 
-관리자는 공개 회원가입으로 만들지 않습니다. 기존 테스터 또는 호스트 프로필에 별도의 관리자 아이디를 추가할 수 있으며, 그러면 세 역할을 동시에 보유할 수도 있습니다.
+관리자는 공개 회원가입으로 만들지 않습니다. 기존 테스터 또는 개인 호스트 프로필에 별도의 관리자 아이디를 추가할 수 있으며, 그러면 세 역할을 동시에 보유할 수도 있습니다. 기업 호스트 프로필에는 관리자 역할을 추가할 수 없습니다.
 
 ```sql
 insert into public.account_roles (profile_id, role, login_id)

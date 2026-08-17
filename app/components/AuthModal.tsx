@@ -257,10 +257,17 @@ export default function AuthModal({
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("name, host_type")
+      .select("name")
       .eq("id", signInData.user.id)
       .single();
-    if (profile?.host_type === "business") {
+    const { data: existingHostProfile } = existingRole === "host"
+      ? await supabase
+          .from("host_profiles")
+          .select("host_type")
+          .eq("profile_id", signInData.user.id)
+          .maybeSingle()
+      : { data: null };
+    if (existingHostProfile?.host_type === "business") {
       await supabase.auth.signOut();
       setLinkLoading(false);
       setLinkError("기업 호스트 계정은 개인 역할 계정과 연결할 수 없습니다.");

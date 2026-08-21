@@ -7,6 +7,7 @@ import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
 import { getAllTests } from "../../lib/supabase/tests";
 import type { Profile, TestRow } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
+import HeroCarousel from "../components/HeroCarousel";
 
 type TestItem = {
   id: string;
@@ -358,102 +359,212 @@ export default function TesterPage() {
       )}
 
       <section className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-10 overflow-hidden rounded-[36px] bg-white p-8 shadow-sm ring-1 ring-blue-100 md:p-10">
-          <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
-            <div>
-              <p className="mb-4 inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
-                테스터 홈
+        <div className="mb-10">
+  <HeroCarousel
+    accentColor="blue"
+    slides={[
+      <div
+        key="intro"
+        className="flex h-full min-h-[520px] flex-col bg-white p-8 shadow-sm ring-1 ring-blue-100 md:min-h-[430px] md:p-10"
+      >
+        <div className="grid flex-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div>
+            <p className="mb-4 inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
+              테스터 홈
+            </p>
+
+            <h1 className="mb-5 text-4xl font-black leading-tight md:text-5xl">
+              새롭게 열린 테스트를
+              <br />
+              가장 먼저 확인해보세요
+            </h1>
+
+            {profile ? (
+              <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+                {profile.name ?? "테스터"}님에게 맞는 테스트를
+                둘러보고, 마음에 드는 공고에 바로 지원해보세요.
               </p>
+            ) : (
+              <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+                로그인하지 않아도 공고는 둘러볼 수 있습니다. 신청하려면
+                로그인 또는 회원가입이 필요합니다.
+              </p>
+            )}
 
-              <h1 className="mb-5 text-4xl font-black leading-tight md:text-5xl">
-                새롭게 열린 테스트를
-                <br />
-                가장 먼저 확인해보세요
-              </h1>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={moveToNoticeList}
+                className="rounded-2xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg shadow-blue-100 hover:bg-blue-700"
+              >
+                공고 목록 보기
+              </button>
 
-              {profile ? (
-                <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
-                  {profile.name ?? "테스터"}님에게 맞는 테스트를 둘러보고,
-                  마음에 드는 공고에 바로 지원해보세요.
-                </p>
-              ) : (
-                <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
-                  로그인하지 않아도 공고는 둘러볼 수 있습니다. 신청하려면
-                  로그인 또는 회원가입이 필요합니다.
-                </p>
-              )}
-
-              <div className="flex flex-col gap-3 sm:flex-row">
+              {!profile && (
                 <button
-                  onClick={moveToNoticeList}
-                  className="rounded-2xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg shadow-blue-100 hover:bg-blue-700"
+                  onClick={() => openAuthModal("login")}
+                  className="rounded-2xl border border-blue-200 bg-white px-6 py-4 font-bold text-blue-700 hover:bg-blue-50"
                 >
-                  공고 목록 보기
+                  로그인하기
                 </button>
+              )}
+            </div>
+          </div>
 
-                {!profile && (
-                  <button
-                    onClick={() => openAuthModal("login")}
-                    className="rounded-2xl border border-blue-200 bg-white px-6 py-4 font-bold text-blue-700 hover:bg-blue-50"
-                  >
-                    로그인하기
-                  </button>
-                )}
+          <div className="rounded-[32px] border border-blue-100 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-blue-600">
+                  TESTER BOARD
+                </p>
+                <h2 className="mt-2 text-2xl font-black">
+                  오늘의 테스트 현황
+                </h2>
+              </div>
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-3xl">
+                🔎
               </div>
             </div>
 
-            <div className="rounded-[32px] border border-blue-100 bg-white p-6 shadow-sm">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-blue-600">
-                    TESTER BOARD
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black">
-                    오늘의 테스트 현황
-                  </h2>
-                </div>
-
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-3xl">
-                  🔎
-                </div>
+            <div className="grid gap-3">
+              <div className="rounded-2xl bg-blue-50 p-4">
+                <p className="text-xs font-bold text-blue-600">
+                  신청 가능 공고
+                </p>
+                <p className="mt-1 text-2xl font-black text-blue-700">
+                  {testList.length}개
+                </p>
               </div>
 
-              <div className="grid gap-3">
-                <div className="rounded-2xl bg-blue-50 p-4">
-                  <p className="text-xs font-bold text-blue-600">
-                    신청 가능 공고
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-blue-700">
-                    {testList.length}개
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-purple-50 p-4">
-                  <p className="text-xs font-bold text-purple-600">
-                    새로 올라온 테스트
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-purple-700">
-                    {newTests.length}개
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-gray-50 p-4">
-                  <p className="text-xs font-bold text-gray-500">추천 행동</p>
-                  <p className="mt-1 text-sm font-semibold text-gray-700">
-                    관심 있는 공고를 눌러 지원 조건을 확인해보세요.
-                  </p>
-                </div>
+              <div className="rounded-2xl bg-purple-50 p-4">
+                <p className="text-xs font-bold text-purple-600">
+                  새로 올라온 테스트
+                </p>
+                <p className="mt-1 text-2xl font-black text-purple-700">
+                  {newTests.length}개
+                </p>
               </div>
 
+              <div className="rounded-2xl bg-gray-50 p-4">
+                <p className="text-xs font-bold text-gray-500">
+                  추천 행동
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-700">
+                  관심 있는 공고를 눌러 지원 조건을 확인해보세요.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={moveToNoticeList}
+              className="mt-5 w-full rounded-2xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-gray-700"
+            >
+              공고 목록 바로가기
+            </button>
+          </div>
+        </div>
+      </div>,
+
+      <div
+        key="cash-reward"
+        className="flex h-full min-h-[520px] flex-col bg-white p-8 shadow-sm ring-1 ring-blue-100 md:min-h-[430px] md:p-10"
+      >
+        <div className="grid flex-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div>
+            <p className="mb-4 inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
+              EVENT
+            </p>
+
+            <h1 className="mb-5 text-4xl font-black leading-tight md:text-5xl">
+              첫 테스트 참여 시
+              <br />
+              캐시 보상을 드려요
+            </h1>
+
+            <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+              처음 참여하는 테스트를 완료하면 캐시 보상이 지급됩니다.
+              지금 관심 있는 공고에 지원해보세요.
+            </p>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={moveToNoticeList}
-                className="mt-5 w-full rounded-2xl bg-gray-900 px-5 py-3 text-sm font-bold text-white hover:bg-gray-700"
+                className="rounded-2xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg shadow-blue-100 hover:bg-blue-700"
               >
-                공고 목록 바로가기
+                공고 목록 보기
               </button>
             </div>
           </div>
+
+          <div className="rounded-[32px] border border-blue-100 bg-blue-50 p-6 shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl">
+              💰
+            </div>
+            <p className="text-sm font-bold text-blue-600">
+              첫 참여 캐시 보상
+            </p>
+            <p className="mt-2 text-2xl font-black text-blue-700">
+              첫 테스트 완료 시 캐시 지급
+            </p>
+            <p className="mt-3 text-sm text-blue-900/70">
+              공고별 상세 보상 조건은 각 테스트 상세 페이지에서
+              확인할 수 있습니다.
+            </p>
+          </div>
         </div>
+      </div>,
+
+      <div
+        key="trust-rank"
+        className="flex h-full min-h-[520px] flex-col bg-white p-8 shadow-sm ring-1 ring-blue-100 md:min-h-[430px] md:p-10"
+      >
+        <div className="grid flex-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div>
+            <p className="mb-4 inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
+              INFO
+            </p>
+
+            <h1 className="mb-5 text-4xl font-black leading-tight md:text-5xl">
+              참여할수록 신뢰도 높은
+              <br />
+              테스터로 추천돼요
+            </h1>
+
+            <p className="mb-8 max-w-xl text-lg leading-8 text-gray-600">
+              테스트 참여 이력이 많을수록 공고를 관리하는 호스트에게
+              더 높은 순위, 높은 신뢰도의 테스터로 추천됩니다.
+            </p>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={moveToNoticeList}
+                className="rounded-2xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg shadow-blue-100 hover:bg-blue-700"
+              >
+                참여할 테스트 찾아보기
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-[32px] border border-blue-100 bg-blue-50 p-6 shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl">
+              🏅
+            </div>
+            <p className="text-sm font-bold text-blue-600">
+              신뢰도 높은 테스터
+            </p>
+            <p className="mt-2 text-2xl font-black text-blue-700">
+              참여 이력 = 신뢰도
+            </p>
+            <p className="mt-3 text-sm text-blue-900/70">
+              꾸준히 참여할수록 호스트가 우선적으로 신뢰하는 테스터로
+              노출됩니다.
+            </p>
+          </div>
+        </div>
+      </div>,
+    ]}
+  />
+</div>
 
         <section className="mb-12">
           <div className="mb-5 flex items-end justify-between">

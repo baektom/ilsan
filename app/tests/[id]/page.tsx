@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
-import { getTestById } from "../../../lib/supabase/tests";
+import { getTestById, incrementTestViewCount } from "../../../lib/supabase/tests";
 import type { TestRow } from "../../../lib/supabase/types";
 
 // 카테고리별 기본 아이콘입니다. tests/page.tsx 목록 카드와 동일한 매핑을 씁니다.
@@ -31,6 +31,10 @@ export default function TestDetailPage() {
 
     setTest(testRow);
     setLoading(false);
+
+    if (testRow) {
+      void incrementTestViewCount(supabase, params.id);
+    }
   }, [supabase, params.id]);
 
   useEffect(() => {
@@ -111,6 +115,10 @@ export default function TestDetailPage() {
           </h1>
           <p className="mb-8 text-sm text-gray-500">
             {test.company_name ?? "등록 호스트"}
+          </p>
+
+          <p className="mb-8 text-xs font-semibold text-gray-400">
+            👁 조회 {test.view_count} · 🙋 지원 {test.applicant_count}명
           </p>
 
           <div className="mb-8 grid gap-4 sm:grid-cols-2">

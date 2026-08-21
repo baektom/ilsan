@@ -26,6 +26,15 @@ export async function getTestById(
   return data as TestRow;
 }
 
+// 테스터가 상세페이지를 볼 때마다 호출합니다.
+// tests 테이블 UPDATE 권한을 넓히지 않고 view_count만 안전하게 올리는 DB 함수를 호출합니다.
+export async function incrementTestViewCount(
+  supabase: SupabaseClient,
+  testId: string
+) {
+  await supabase.rpc("increment_test_view_count", { p_test_id: testId });
+}
+
 export async function getMyTests(supabase: SupabaseClient): Promise<TestRow[]> {
   const user = await getCurrentUser(supabase);
   if (!user) return [];

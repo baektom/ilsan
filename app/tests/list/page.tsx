@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { getCurrentProfile } from "../../../lib/supabase/profiles";
 import { getAllTests } from "../../../lib/supabase/tests";
@@ -10,6 +10,23 @@ import type { Profile, TestRow } from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
 
 const categoryTabs = ["전체", "화장품", "게임", "시제품", "설문조사", "식품", "기타"];
+
+// 홈 화면(tests/page.tsx)과 같은 기준입니다. 여기 숫자를 바꾸면 같이 맞춰서 바꿔주세요.
+const NEW_THRESHOLD_DAYS = 3;
+
+function isRecentlyCreated(createdAt: string) {
+  const createdTime = new Date(createdAt).getTime();
+  const thresholdMs = NEW_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - createdTime <= thresholdMs;
+}
+
+type SortMode = "latest" | "new" | "popular";
+
+const sortHeading: Record<SortMode, { eyebrow: string; title: string }> = {
+  latest: { eyebrow: "NOTICE LIST", title: "전체 공고 목록" },
+  new: { eyebrow: "NEW TEST", title: "새롭게 공개된 테스트 전체보기" },
+  popular: { eyebrow: "POPULAR", title: "인기 많은 테스트 전체보기" },
+};
 
 // 카테고리별 기본 아이콘입니다. tests/page.tsx 목록 카드와 동일한 매핑을 씁니다.
 function getCategoryEmoji(category: string) {
@@ -22,9 +39,14 @@ function getCategoryEmoji(category: string) {
   return "🎁";
 }
 
-export default function TestListPage() {
+function TestListContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [supabase] = useState(() => createClient());
+
+  const sortParam = searchParams.get("sort");
+  const sortMode: SortMode =
+    sortParam === "new" || sortParam === "popular" ? sortParam : "latest";
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tests, setTests] = useState<TestRow[]>([]);
@@ -53,9 +75,23 @@ export default function TestListPage() {
   }, [loadData]);
 
   const visibleTests = useMemo(() => {
-    if (categoryFilter === "전체") return tests;
-    return tests.filter((test) => test.category === categoryFilter);
-  }, [tests, categoryFilter]);
+    const filtered =
+      categoryFilter === "전체"
+        ? tests
+        : tests.filter((test) => test.category === categoryFilter);
+
+    if (sortMode === "popular") {
+      return [...filtered].sort((a, b) => b.applicant_count - a.applicant_count);
+    }
+
+    if (sortMode === "new") {
+      // 등록된 지 NEW_THRESHOLD_DAYS일 이내인 것만 보여줍니다(최신순 정렬은 그대로 유지).
+      return filtered.filter((test) => isRecentlyCreated(test.created_at));
+    }
+
+    // "latest"는 getAllTests가 이미 created_at 최신순으로 내려주므로 그대로 씁니다.
+    return filtered;
+  }, [tests, categoryFilter, sortMode]);
 
   const handleApply = (testId: string) => {
     if (!profile) {
@@ -94,8 +130,12 @@ export default function TestListPage() {
       </header>
 
       <section className="mx-auto max-w-6xl px-6 py-10">
-        <p className="mb-2 text-sm font-bold text-gray-500">NOTICE LIST</p>
-        <h1 className="mb-8 text-4xl font-black md:text-5xl">전체 공고 목록</h1>
+        <p className="mb-2 text-sm font-bold text-gray-500">
+          {sortHeading[sortMode].eyebrow}
+        </p>
+        <h1 className="mb-8 text-4xl font-black md:text-5xl">
+          {sortHeading[sortMode].title}
+        </h1>
 
         <div className="mb-8 flex flex-wrap gap-2">
           {categoryTabs.map((category) => (
@@ -200,5 +240,19 @@ export default function TestListPage() {
         />
       )}
     </main>
+  );
+}
+
+export default function TestListPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#f8fbff]">
+          <p className="text-gray-500">공고 목록을 불러오는 중...</p>
+        </main>
+      }
+    >
+      <TestListContent />
+    </Suspense>
   );
 }

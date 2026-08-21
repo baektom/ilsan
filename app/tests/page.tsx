@@ -21,7 +21,20 @@ type TestItem = {
   description: string;
   badge: string;
   imageEmoji: string;
+  viewCount: number;
+  applicantCount: number;
+  isNew: boolean;
 };
+
+// 등록된 지 며칠 이내면 "신규"로 볼지 기준입니다.
+// 여기 숫자만 바꾸면 홈 화면 NEW 배지, 신규 섹션, /tests/list?sort=new 전체보기가 다 같이 바뀝니다.
+const NEW_THRESHOLD_DAYS = 3;
+
+function isRecentlyCreated(createdAt: string) {
+  const createdTime = new Date(createdAt).getTime();
+  const thresholdMs = NEW_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - createdTime <= thresholdMs;
+}
 
 // 카테고리별 기본 아이콘입니다.
 // 나중에 UI 담당자가 이미지나 아이콘 컴포넌트로 바꿔도 됩니다.
@@ -52,8 +65,11 @@ function mapTestRowToItem(test: TestRow): TestItem {
     period,
     location: test.location ?? "진행 방식 미정",
     description: test.description,
-    badge: "NEW",
+    badge: isRecentlyCreated(test.created_at) ? "NEW" : "",
     imageEmoji: getCategoryEmoji(test.category),
+    viewCount: test.view_count,
+    applicantCount: test.applicant_count,
+    isNew: isRecentlyCreated(test.created_at),
   };
 }
 
@@ -70,9 +86,6 @@ export default function TesterPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
-
-  const [selectedCategory, setSelectedCategory] = useState("전체");
-  const [searchText, setSearchText] = useState("");
 
   const [pendingTest, setPendingTest] = useState<TestItem | null>(null);
 
@@ -117,22 +130,23 @@ export default function TesterPage() {
     setMenuOpen(false);
   };
 
-  const newTests = testList.slice(0, 3);
-  const popularTests = testList.slice(0, 3);
+  const newTests = testList.filter((test) => test.isNew).slice(0, 3);
+  const popularTests = [...testList]
+    .sort((a, b) => b.applicantCount - a.applicantCount)
+    .slice(0, 3);
 
-  const filteredTests = useMemo(() => {
-    return testList.filter((test) => {
-      const categoryMatched =
-        selectedCategory === "전체" || test.category === selectedCategory;
+  // 홈 화면 하단 "공고 목록"은 탭으로 고른 카테고리 기준 최대 5개까지만 보여주고,
+  // 전체 목록은 /tests/list 페이지에서 확인하도록 합니다.
+  const [previewCategory, setPreviewCategory] = useState("전체");
 
-      const searchMatched =
-        test.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        test.company.toLowerCase().includes(searchText.toLowerCase()) ||
-        test.description.toLowerCase().includes(searchText.toLowerCase());
+  const noticeListPreview = useMemo(() => {
+    const filtered =
+      previewCategory === "전체"
+        ? testList
+        : testList.filter((test) => test.category === previewCategory);
 
-      return categoryMatched && searchMatched;
-    });
-  }, [selectedCategory, searchText, testList]);
+    return filtered.slice(0, 5);
+  }, [testList, previewCategory]);
 
   const handleLogout = async () => {
     await logout(supabase);
@@ -562,7 +576,7 @@ export default function TesterPage() {
             </div>
 
             <button
-              onClick={moveToNoticeList}
+              onClick={() => router.push("/tests/list?sort=new")}
               className="text-sm font-bold text-blue-600 hover:text-blue-800"
             >
               전체보기
@@ -601,6 +615,10 @@ export default function TesterPage() {
 
                   <p className="mb-4 text-sm text-gray-500">{test.company}</p>
 
+                  <p className="mb-4 text-xs font-semibold text-gray-400">
+                    👁 조회 {test.viewCount} · 🙋 지원 {test.applicantCount}명
+                  </p>
+
                   <div className="mb-5 rounded-2xl bg-blue-50 p-4">
                     <p className="text-xs text-gray-500">보상</p>
                     <p className="font-bold text-blue-700">{test.reward}</p>
@@ -631,7 +649,7 @@ export default function TesterPage() {
             </div>
 
             <button
-              onClick={moveToNoticeList}
+              onClick={() => router.push("/tests/list?sort=popular")}
               className="text-sm font-bold text-purple-600 hover:text-purple-800"
             >
               전체보기
@@ -670,6 +688,10 @@ export default function TesterPage() {
 
                   <p className="mb-4 text-sm text-gray-500">{test.company}</p>
 
+                  <p className="mb-4 text-xs font-semibold text-gray-400">
+                    👁 조회 {test.viewCount} · 🙋 지원 {test.applicantCount}명
+                  </p>
+
                   <div className="mb-5 grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-purple-50 p-4">
                       <p className="text-xs text-gray-500">모집</p>
@@ -705,49 +727,47 @@ export default function TesterPage() {
           ref={noticeListRef}
           className="scroll-mt-28 rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-gray-100"
         >
-          <div className="mb-6">
-            <p className="mb-2 text-sm font-bold text-gray-500">
-              NOTICE LIST
-            </p>
-            <h2 className="text-2xl font-black">공고 목록</h2>
-          </div>
-
-          <div className="mb-6 rounded-2xl bg-gray-50 p-5">
-            <div className="mb-4">
-              <input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="테스트명, 기업명, 설명으로 검색"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <p className="mb-2 text-sm font-bold text-gray-500">
+                NOTICE LIST
+              </p>
+              <h2 className="text-2xl font-black">공고 목록</h2>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {["전체", "화장품", "게임", "시제품", "설문조사", "식품"].map(
-                (category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`rounded-full px-4 py-2 text-sm font-bold ${
-                      selectedCategory === category
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    {category}
-                  </button>
-                )
-              )}
-            </div>
+            <button
+              onClick={() => router.push("/tests/list")}
+              className="text-sm font-bold text-gray-700 hover:text-gray-900"
+            >
+              전체보기
+            </button>
           </div>
 
-          {filteredTests.length === 0 ? (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {["전체", "화장품", "게임", "시제품", "설문조사", "식품", "기타"].map(
+              (category) => (
+                <button
+                  key={category}
+                  onClick={() => setPreviewCategory(category)}
+                  className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                    previewCategory === category
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100"
+                  }`}
+                >
+                  {category}
+                </button>
+              )
+            )}
+          </div>
+
+          {noticeListPreview.length === 0 ? (
             <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center text-gray-500">
-              조건에 맞는 공고가 없습니다.
+              해당 카테고리에 등록된 공고가 없습니다.
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredTests.map((test) => (
+              {noticeListPreview.map((test) => (
                 <article
                   key={test.id}
                   onClick={() => router.push(`/tests/${test.id}`)}
@@ -764,9 +784,11 @@ export default function TesterPage() {
                           <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
                             {test.category}
                           </span>
-                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                            {test.badge}
-                          </span>
+                          {test.badge && (
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                              {test.badge}
+                            </span>
+                          )}
                         </div>
 
                         <h3 className="mb-1 text-lg font-black">
@@ -777,8 +799,8 @@ export default function TesterPage() {
                           {test.company} · {test.location} · {test.period}
                         </p>
 
-                        <p className="mt-2 line-clamp-2 text-sm text-gray-600">
-                          {test.description}
+                        <p className="mt-2 text-xs font-semibold text-gray-400">
+                          👁 조회 {test.viewCount} · 🙋 지원 {test.applicantCount}명
                         </p>
                       </div>
                     </div>

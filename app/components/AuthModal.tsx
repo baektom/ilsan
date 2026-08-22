@@ -442,10 +442,28 @@ export default function AuthModal({
           )}
 
           <Field label="비밀번호" value={password} onChange={setPassword} type="password" />
-          {authMode === "signup" && <Field label="비밀번호 확인" value={confirmPassword} onChange={setConfirmPassword} type="password" />}
+          {authMode === "signup" && (
+            <div>
+              <Field label="비밀번호 확인" value={confirmPassword} onChange={setConfirmPassword} type="password" />
+              {confirmPassword.length > 0 && (
+                password === confirmPassword ? (
+                  <p className="mt-1 text-xs font-semibold text-green-600">비밀번호가 일치합니다.</p>
+                ) : (
+                  <p className="mt-1 text-xs font-semibold text-red-500">비밀번호가 일치하지 않습니다.</p>
+                )
+              )}
+            </div>
+          )}
           {errorMessage && <p className="text-center text-sm font-medium text-red-500">{errorMessage}</p>}
           {successMessage && <p className="text-center text-sm font-medium text-green-600">{successMessage}</p>}
-          <button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700 disabled:bg-gray-400">
+          <button
+            type="submit"
+            disabled={
+              loading ||
+              (authMode === "signup" && confirmPassword.length > 0 && password !== confirmPassword)
+            }
+            className="w-full rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700 disabled:bg-gray-400"
+          >
             {loading ? "처리 중…" : authMode === "login" ? "로그인하기" : "회원가입하기"}
           </button>
           {canLinkExistingAccount && (

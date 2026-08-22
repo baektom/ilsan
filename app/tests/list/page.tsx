@@ -187,7 +187,7 @@ function TestListContent() {
                         </span>
                       </div>
 
-                      <h3 className="mb-1 text-lg font-black">{test.title}</h3>
+                      <h3 className="mb-1 line-clamp-1 text-lg font-black">{test.title}</h3>
 
                       <p className="text-sm text-gray-500">
                         {test.company_name ?? "등록 호스트"} ·{" "}

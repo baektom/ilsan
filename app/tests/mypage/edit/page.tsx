@@ -136,7 +136,7 @@ export default function EditProfilePage() {
                 onChange={(event) => setAge(event.target.value)}
                 type="number"
                 min={1}
-                placeholder="나이 (선택)"
+                placeholder="나이"
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -148,7 +148,7 @@ export default function EditProfilePage() {
               <input
                 value={region}
                 onChange={(event) => setRegion(event.target.value)}
-                placeholder="지역 (선택)"
+                placeholder="지역"
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -160,7 +160,7 @@ export default function EditProfilePage() {
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                placeholder="연락처 (선택)"
+                placeholder="연락처"
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>

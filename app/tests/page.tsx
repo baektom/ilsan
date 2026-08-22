@@ -609,11 +609,11 @@ export default function TesterPage() {
                     {test.category}
                   </p>
 
-                  <h3 className="mb-3 text-xl font-black leading-snug">
+                  <h3 className="mb-3 line-clamp-2 min-h-[3.4rem] text-xl font-black leading-snug">
                     {test.title}
                   </h3>
 
-                  <p className="mb-4 text-sm text-gray-500">{test.company}</p>
+                  <p className="mb-4 line-clamp-1 text-sm text-gray-500">{test.company}</p>
 
                   <p className="mb-4 text-xs font-semibold text-gray-400">
                     👁 조회 {test.viewCount} · 🙋 지원 {test.applicantCount}명
@@ -682,11 +682,11 @@ export default function TesterPage() {
                     {test.category}
                   </p>
 
-                  <h3 className="mb-3 text-xl font-black leading-snug">
+                  <h3 className="mb-3 line-clamp-2 min-h-[3.4rem] text-xl font-black leading-snug">
                     {test.title}
                   </h3>
 
-                  <p className="mb-4 text-sm text-gray-500">{test.company}</p>
+                  <p className="mb-4 line-clamp-1 text-sm text-gray-500">{test.company}</p>
 
                   <p className="mb-4 text-xs font-semibold text-gray-400">
                     👁 조회 {test.viewCount} · 🙋 지원 {test.applicantCount}명
@@ -791,7 +791,7 @@ export default function TesterPage() {
                           )}
                         </div>
 
-                        <h3 className="mb-1 text-lg font-black">
+                        <h3 className="mb-1 line-clamp-1 text-lg font-black">
                           {test.title}
                         </h3>
 

@@ -11,6 +11,7 @@ import {
 import { createTest } from "../../../../lib/supabase/tests";
 import type { CreateTestInput, Profile } from "../../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../../components/AuthModal";
+import HostHeader from "../../../components/HostHeader";
 
 type RewardType = "all" | "lottery";
 
@@ -193,7 +194,7 @@ export default function NewHostTestPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbf9ff] px-6 py-12 text-gray-900">
+    <main className="min-h-screen bg-[#fbf9ff] text-gray-900">
       {authModalOpen && (
         <AuthModal
           key={authInitialMode}
@@ -207,10 +208,22 @@ export default function NewHostTestPage() {
         />
       )}
 
-      <section className="mx-auto max-w-3xl rounded-3xl bg-white p-8 shadow-sm">
-        <Link href="/host" className="text-sm font-bold text-purple-600">
+      <HostHeader
+        supabase={supabase}
+        profile={profile}
+        hostCanAct={Boolean(isApprovedHost(profile))}
+        onProfileChange={setProfile}
+        onOpenAuth={openAuthModal}
+      />
+
+      <div className="px-6 pb-12 pt-8">
+        <section className="mx-auto max-w-3xl rounded-3xl bg-white p-8 shadow-sm">
+        <button
+          onClick={() => router.push("/host")}
+          className="text-sm font-bold text-purple-600"
+        >
           ← 호스트 홈으로
-        </Link>
+        </button>
 
         <p className="mb-2 mt-5 text-sm font-bold text-purple-600">CREATE</p>
         <h1 className="mb-6 text-3xl font-black">새 테스트 등록</h1>
@@ -460,6 +473,7 @@ export default function NewHostTestPage() {
           </button>
         </form>
       </section>
+      </div>
     </main>
   );
 }

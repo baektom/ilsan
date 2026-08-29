@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { getCurrentProfile } from "../../../lib/supabase/profiles";
 import { getAllTests } from "../../../lib/supabase/tests";
 import type { Profile, TestRow } from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
+import TesterHeader from "../../components/TesterHeader";
 
 const categoryTabs = ["전체", "화장품", "게임", "시제품", "설문조사", "식품", "기타"];
 
@@ -52,6 +52,7 @@ function TestListContent() {
   const [tests, setTests] = useState<TestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("전체");
+  const [hideClosed, setHideClosed] = useState(false);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
@@ -75,10 +76,14 @@ function TestListContent() {
   }, [loadData]);
 
   const visibleTests = useMemo(() => {
+    const withoutClosed = hideClosed
+      ? tests.filter((test) => test.status !== "마감")
+      : tests;
+
     const filtered =
       categoryFilter === "전체"
-        ? tests
-        : tests.filter((test) => test.category === categoryFilter);
+        ? withoutClosed
+        : withoutClosed.filter((test) => test.category === categoryFilter);
 
     if (sortMode === "popular") {
       return [...filtered].sort((a, b) => b.applicant_count - a.applicant_count);
@@ -91,7 +96,7 @@ function TestListContent() {
 
     // "latest"는 getAllTests가 이미 created_at 최신순으로 내려주므로 그대로 씁니다.
     return filtered;
-  }, [tests, categoryFilter, sortMode]);
+  }, [tests, categoryFilter, sortMode, hideClosed]);
 
   const handleApply = (testId: string) => {
     if (!profile) {
@@ -104,6 +109,11 @@ function TestListContent() {
     router.push(`/tests/apply/${testId}`);
   };
 
+  const openAuthModal = (mode: AuthMode) => {
+    setAuthInitialMode(mode);
+    setAuthModalOpen(true);
+  };
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f8fbff]">
@@ -114,20 +124,12 @@ function TestListContent() {
 
   return (
     <main className="min-h-screen bg-[#f8fbff] text-gray-900">
-      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/tests" className="text-2xl font-black tracking-tight text-blue-600">
-            모아드림 테스트
-          </Link>
-
-          <Link
-            href="/tests"
-            className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
-          >
-            테스터 홈으로
-          </Link>
-        </div>
-      </header>
+      <TesterHeader
+        supabase={supabase}
+        profile={profile}
+        onProfileChange={setProfile}
+        onOpenAuth={openAuthModal}
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-10">
         <p className="mb-2 text-sm font-bold text-gray-500">
@@ -137,20 +139,33 @@ function TestListContent() {
           {sortHeading[sortMode].title}
         </h1>
 
-        <div className="mb-8 flex flex-wrap gap-2">
-          {categoryTabs.map((category) => (
-            <button
-              key={category}
-              onClick={() => setCategoryFilter(category)}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
-                categoryFilter === category
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {categoryTabs.map((category) => (
+              <button
+                key={category}
+                onClick={() => setCategoryFilter(category)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  categoryFilter === category
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setHideClosed((prev) => !prev)}
+            className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+              hideClosed
+                ? "bg-gray-900 text-white"
+                : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            {hideClosed ? "✓ 마감 공고 숨김" : "마감 공고 숨기기"}
+          </button>
         </div>
 
         {visibleTests.length === 0 ? (

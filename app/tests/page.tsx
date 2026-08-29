@@ -300,7 +300,10 @@ export default function TesterPage() {
               </button>
 
               <button
-                onClick={moveToNoticeList}
+                onClick={() => {
+                  setMenuOpen(false);
+                  router.push("/tests/list");
+                }}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
               >
                 📋 공고 목록
@@ -313,7 +316,8 @@ export default function TesterPage() {
                     return;
                   }
 
-                  alert("다음 단계에서 내 신청 현황 페이지를 만들 예정입니다.");
+                  setMenuOpen(false);
+                  router.push("/tests/mypage");
                 }}
                 className="w-full rounded-2xl border border-gray-200 px-5 py-4 text-left font-semibold hover:bg-gray-50"
               >

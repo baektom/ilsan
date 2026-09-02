@@ -2,6 +2,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentProfile, getCurrentUser, isApprovedHost } from "./profiles";
 import type { CreateTestInput, TestRow, TestStatus } from "./types";
 
+// period_end가 지났으면 DB의 status 값과 상관없이 "마감"으로 취급합니다.
+// 호스트가 수동으로 마감 처리를 안 해도 기간이 지나면 자동으로 마감 취급되도록 하는 용도입니다.
+export function getEffectiveTestStatus(test: {
+  status: TestStatus;
+  period_end: string | null;
+}): TestStatus {
+  if (test.status === "마감") return "마감";
+
+  if (test.period_end) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (test.period_end < today) return "마감";
+  }
+
+  return test.status;
+}
+
 export async function getAllTests(supabase: SupabaseClient): Promise<TestRow[]> {
   const { data, error } = await supabase
     .from("tests")

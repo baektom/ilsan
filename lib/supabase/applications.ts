@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentProfile, getCurrentUser } from "./profiles";
+import { getEffectiveTestStatus } from "./tests";
 import type {
   ApplicationRow,
   ApplicationStatus,
@@ -16,6 +17,20 @@ export async function createApplication(
   if (!profile) return { ok: false, message: "로그인 후 지원할 수 있습니다." };
   if (!input.applicantName.trim()) {
     return { ok: false, message: "이름을 입력해 주세요." };
+  }
+
+  const { data: testRow, error: testError } = await supabase
+    .from("tests")
+    .select("status, period_end")
+    .eq("id", input.testId)
+    .single();
+
+  if (testError || !testRow) {
+    return { ok: false, message: "존재하지 않는 테스트입니다." };
+  }
+
+  if (getEffectiveTestStatus(testRow) === "마감") {
+    return { ok: false, message: "모집이 마감된 테스트입니다." };
   }
 
   const { error } = await supabase.from("applications").insert({

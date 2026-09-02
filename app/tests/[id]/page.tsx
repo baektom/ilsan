@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
-import { getTestById, incrementTestViewCount } from "../../../lib/supabase/tests";
+import {
+  getEffectiveTestStatus,
+  getTestById,
+  incrementTestViewCount,
+} from "../../../lib/supabase/tests";
 import type { TestRow } from "../../../lib/supabase/types";
 
 // 카테고리별 기본 아이콘입니다. tests/page.tsx 목록 카드와 동일한 매핑을 씁니다.
@@ -85,6 +89,8 @@ export default function TestDetailPage() {
       ? `${test.period_start} ~ ${test.period_end}`
       : "상시 모집";
 
+  const effectiveStatus = getEffectiveTestStatus(test);
+
   return (
     <main className="min-h-screen bg-[#f8fbff] px-6 py-12 text-gray-900">
       <section className="mx-auto max-w-3xl">
@@ -100,10 +106,10 @@ export default function TestDetailPage() {
 
             <span
               className={`rounded-full px-3 py-1 text-xs font-black text-white ${
-                test.status === "마감" ? "bg-gray-400" : "bg-blue-600"
+                effectiveStatus === "마감" ? "bg-gray-400" : "bg-blue-600"
               }`}
             >
-              {test.status}
+              {effectiveStatus}
             </span>
           </div>
 
@@ -158,10 +164,10 @@ export default function TestDetailPage() {
 
           <button
             onClick={handleApply}
-            disabled={test.status === "마감"}
+            disabled={effectiveStatus === "마감"}
             className="w-full rounded-2xl bg-blue-600 px-5 py-4 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {test.status === "마감" ? "모집이 마감되었습니다" : "지원하기"}
+            {effectiveStatus === "마감" ? "모집이 마감되었습니다" : "지원하기"}
           </button>
         </article>
       </section>

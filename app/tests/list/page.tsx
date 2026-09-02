@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { getCurrentProfile } from "../../../lib/supabase/profiles";
-import { getAllTests } from "../../../lib/supabase/tests";
+import { getAllTests, getEffectiveTestStatus } from "../../../lib/supabase/tests";
 import type { Profile, TestRow } from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
 import TesterHeader from "../../components/TesterHeader";
@@ -77,7 +77,7 @@ function TestListContent() {
 
   const visibleTests = useMemo(() => {
     const withoutClosed = hideClosed
-      ? tests.filter((test) => test.status !== "마감")
+      ? tests.filter((test) => getEffectiveTestStatus(test) !== "마감")
       : tests;
 
     const filtered =
@@ -174,7 +174,10 @@ function TestListContent() {
           </div>
         ) : (
           <div className="space-y-4">
-            {visibleTests.map((test) => (
+            {visibleTests.map((test) => {
+              const effectiveStatus = getEffectiveTestStatus(test);
+
+              return (
               <article
                 key={test.id}
                 onClick={() => router.push(`/tests/${test.id}`)}
@@ -193,12 +196,12 @@ function TestListContent() {
                         </span>
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-bold ${
-                            test.status === "마감"
+                            effectiveStatus === "마감"
                               ? "bg-gray-200 text-gray-500"
                               : "bg-blue-100 text-blue-700"
                           }`}
                         >
-                          {test.status}
+                          {effectiveStatus}
                         </span>
                       </div>
 
@@ -223,15 +226,16 @@ function TestListContent() {
                         event.stopPropagation();
                         handleApply(test.id);
                       }}
-                      disabled={test.status === "마감"}
+                      disabled={effectiveStatus === "마감"}
                       className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                     >
-                      {test.status === "마감" ? "모집 마감" : "지원하기"}
+                      {effectiveStatus === "마감" ? "모집 마감" : "지원하기"}
                     </button>
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

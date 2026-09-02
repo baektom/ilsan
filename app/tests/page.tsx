@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 import { getCurrentProfile, logout } from "../../lib/supabase/profiles";
-import { getAllTests } from "../../lib/supabase/tests";
+import { getAllTests, getEffectiveTestStatus } from "../../lib/supabase/tests";
 import type { Profile, TestRow } from "../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../components/AuthModal";
 import HeroCarousel from "../components/HeroCarousel";
@@ -24,6 +24,7 @@ type TestItem = {
   viewCount: number;
   applicantCount: number;
   isNew: boolean;
+  isClosed: boolean;
 };
 
 // 등록된 지 며칠 이내면 "신규"로 볼지 기준입니다.
@@ -70,6 +71,7 @@ function mapTestRowToItem(test: TestRow): TestItem {
     viewCount: test.view_count,
     applicantCount: test.applicant_count,
     isNew: isRecentlyCreated(test.created_at),
+    isClosed: getEffectiveTestStatus(test) === "마감",
   };
 }
 
@@ -130,7 +132,10 @@ export default function TesterPage() {
     setMenuOpen(false);
   };
 
-  const newTests = testList.filter((test) => test.isNew).slice(0, 3);
+  // 3일 이내에 등록된 게 없으면, 그냥 최신 공고 3개를 대신 보여줍니다(섹션이 비어 보이지 않도록).
+  // 이 경우 NEW 배지는 각 공고의 실제 등록일 기준으로 붙기 때문에, 3일이 지난 공고는 배지 없이 표시됩니다.
+  const recentTests = testList.filter((test) => test.isNew).slice(0, 3);
+  const newTests = recentTests.length > 0 ? recentTests : testList.slice(0, 3);
   const popularTests = [...testList]
     .sort((a, b) => b.applicantCount - a.applicantCount)
     .slice(0, 3);
@@ -182,6 +187,11 @@ export default function TesterPage() {
   // 지원하기 버튼을 눌렀을 때 실행됩니다.
   // 로그인 전이면 로그인창을 열고, 로그인 후면 지원 페이지로 이동합니다.
   const handleApply = (test: TestItem) => {
+    if (test.isClosed) {
+      alert("모집이 마감된 테스트입니다.");
+      return;
+    }
+
     if (!profile) {
       setPendingTest(test);
       openAuthModal("login");
@@ -633,9 +643,10 @@ export default function TesterPage() {
                       event.stopPropagation();
                       handleApply(test);
                     }}
-                    className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700"
+                    disabled={test.isClosed}
+                    className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
-                    지원하기
+                    {test.isClosed ? "모집 마감" : "지원하기"}
                   </button>
                 </article>
               ))}
@@ -717,9 +728,10 @@ export default function TesterPage() {
                       event.stopPropagation();
                       handleApply(test);
                     }}
-                    className="w-full rounded-2xl bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700"
+                    disabled={test.isClosed}
+                    className="w-full rounded-2xl bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
-                    지원하기
+                    {test.isClosed ? "모집 마감" : "지원하기"}
                   </button>
                 </article>
               ))}
@@ -817,9 +829,10 @@ export default function TesterPage() {
                           event.stopPropagation();
                           handleApply(test);
                         }}
-                        className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+                        disabled={test.isClosed}
+                        className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                       >
-                        지원하기
+                        {test.isClosed ? "모집 마감" : "지원하기"}
                       </button>
                     </div>
                   </div>

@@ -390,7 +390,7 @@ export default function NewHostTestPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 진행 방식 <span className="text-red-500">*</span>
@@ -418,7 +418,7 @@ export default function NewHostTestPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 시작일 <span className="text-red-500">*</span>

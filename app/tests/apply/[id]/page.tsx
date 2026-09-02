@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createApplication } from "../../../../lib/supabase/applications";
 import { createClient } from "../../../../lib/supabase/client";
 import { getCurrentProfile } from "../../../../lib/supabase/profiles";
-import { getTestById } from "../../../../lib/supabase/tests";
+import { getEffectiveTestStatus, getTestById } from "../../../../lib/supabase/tests";
 import type { Profile, TestRow } from "../../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../../components/AuthModal";
 
@@ -114,6 +114,27 @@ export default function ApplyPage() {
             className="mt-8 inline-block rounded-xl bg-blue-600 px-6 py-3 font-bold text-white"
           >
             테스트 목록으로 돌아가기
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (getEffectiveTestStatus(test) === "마감") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-blue-50 px-6">
+        <section className="w-full max-w-lg rounded-3xl bg-white p-10 text-center shadow-sm">
+          <h1 className="text-2xl font-black text-gray-900">
+            모집이 마감된 테스트입니다
+          </h1>
+          <p className="mt-3 text-gray-500">
+            아쉽지만 이 테스트는 더 이상 지원을 받지 않고 있어요.
+          </p>
+          <Link
+            href="/tests"
+            className="mt-8 inline-block rounded-xl bg-blue-600 px-6 py-3 font-bold text-white"
+          >
+            다른 테스트 보러 가기
           </Link>
         </section>
       </main>

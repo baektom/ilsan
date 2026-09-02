@@ -21,6 +21,7 @@ import type {
   TestStatus,
 } from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
+import HostHeader from "../../components/HostHeader";
 
 const statusStyle: Record<TestStatus, string> = {
   모집중: "bg-green-50 text-green-700",
@@ -195,23 +196,13 @@ export default function HostMyPage() {
 
   return (
     <main className="min-h-screen bg-[#fbf9ff] text-gray-900">
-      <header className="sticky top-0 z-30 border-b border-purple-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <button
-            onClick={() => router.push("/host")}
-            className="text-2xl font-black tracking-tight text-purple-600"
-          >
-            모아드림 호스트
-          </button>
-
-          <button
-            onClick={() => router.push("/host")}
-            className="rounded-2xl border border-purple-100 bg-purple-50 px-4 py-2 text-sm font-bold text-purple-700 hover:bg-purple-100"
-          >
-            호스트 홈으로
-          </button>
-        </div>
-      </header>
+      <HostHeader
+        supabase={supabase}
+        profile={profile}
+        hostCanAct={Boolean(isApprovedHost(profile))}
+        onProfileChange={setProfile}
+        onOpenAuth={openAuthModal}
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-10">
         <p className="mb-4 inline-block rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-700">

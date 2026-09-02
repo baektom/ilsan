@@ -11,6 +11,7 @@ import type {
   Profile,
 } from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
+import TesterHeader from "../../components/TesterHeader";
 
 const applicationStatusStyle: Record<ApplicationStatus, string> = {
   대기: "bg-gray-100 text-gray-600",
@@ -125,23 +126,12 @@ export default function TesterMyPage() {
 
   return (
     <main className="min-h-screen bg-[#f8fbff] text-gray-900">
-      <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <button
-            onClick={() => router.push("/tests")}
-            className="text-2xl font-black tracking-tight text-blue-600"
-          >
-            모아드림 테스트
-          </button>
-
-          <button
-            onClick={() => router.push("/tests")}
-            className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
-          >
-            공고 목록으로
-          </button>
-        </div>
-      </header>
+      <TesterHeader
+        supabase={supabase}
+        profile={profile}
+        onProfileChange={setProfile}
+        onOpenAuth={openAuthModal}
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-10">
         <p className="mb-4 inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">

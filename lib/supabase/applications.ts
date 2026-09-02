@@ -98,3 +98,17 @@ export async function updateApplicationStatus(
   if (error) return { ok: false, message: error.message };
   return { ok: true, message: "지원 상태가 변경되었습니다." };
 }
+
+// 호스트가 "지원자 확인" 화면에서 지원 건을 확인하면 호출합니다.
+// 이후에는 "신규 지원자" 목록에 다시 뜨지 않습니다.
+export async function markApplicationsViewed(
+  supabase: SupabaseClient,
+  applicationIds: string[]
+) {
+  if (applicationIds.length === 0) return;
+
+  await supabase
+    .from("applications")
+    .update({ viewed_by_host: true })
+    .in("id", applicationIds);
+}

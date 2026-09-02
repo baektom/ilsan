@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import {
   getApplicationsForHostTests,
+  markApplicationsViewed,
   updateApplicationStatus,
 } from "../../../lib/supabase/applications";
 import {
@@ -20,6 +21,7 @@ import type {
   TestRow,
 } from "../../../lib/supabase/types";
 import AuthModal, { AuthMode } from "../../components/AuthModal";
+import HostHeader from "../../components/HostHeader";
 
 export default function HostApplicantsPage() {
   return (
@@ -47,6 +49,17 @@ function HostApplicantsContent() {
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // "신규"는 호스트가 아직 한 번도 열어보지 않은 지원 건입니다.
+  // 이 화면을 처음 연 시점 기준으로 신규 목록을 고정해두고,
+  // 그 목록이 화면에 뜨는 순간 서버에는 열람 처리를 해둡니다(다음 방문부터는 신규에서 빠짐).
+  const [newApplicationIds, setNewApplicationIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [viewMode, setViewMode] = useState<"new" | "all">("new");
+  const [statusFilter, setStatusFilter] = useState<"전체" | ApplicationStatus>(
+    "전체"
+  );
+
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<AuthMode>("login");
 
@@ -71,6 +84,17 @@ function HostApplicantsContent() {
     setTests(myTests);
     setApplications(hostApplications);
     setLoading(false);
+
+    // 지금 시점에 아직 안 본 것들을 "신규"로 기억해두고, 화면에 뜬 김에 열람 처리합니다.
+    const unviewedIds = hostApplications
+      .filter((application) => !application.viewed_by_host)
+      .map((application) => application.id);
+
+    setNewApplicationIds(new Set(unviewedIds));
+
+    if (unviewedIds.length > 0) {
+      void markApplicationsViewed(supabase, unviewedIds);
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -90,7 +114,7 @@ function HostApplicantsContent() {
 
   const selectedTest = tests.find((test) => test.id === testIdFilter);
 
-  const visibleApplications = useMemo(
+  const testFilteredApplications = useMemo(
     () =>
       testIdFilter
         ? applications.filter(
@@ -99,6 +123,19 @@ function HostApplicantsContent() {
         : applications,
     [applications, testIdFilter]
   );
+
+  const visibleApplications = useMemo(() => {
+    if (viewMode === "new") {
+      return testFilteredApplications.filter((application) =>
+        newApplicationIds.has(application.id)
+      );
+    }
+
+    if (statusFilter === "전체") return testFilteredApplications;
+    return testFilteredApplications.filter(
+      (application) => application.status === statusFilter
+    );
+  }, [testFilteredApplications, viewMode, statusFilter, newApplicationIds]);
 
   // 지원자가 어떤 테스트에 지원했는지 테스트 제목을 찾아주는 함수입니다.
   const getTestTitle = (testId: string) => {
@@ -149,7 +186,7 @@ function HostApplicantsContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbf9ff] px-6 py-12 text-gray-900">
+    <main className="min-h-screen bg-[#fbf9ff] text-gray-900">
       {authModalOpen && (
         <AuthModal
           key={authInitialMode}
@@ -163,10 +200,21 @@ function HostApplicantsContent() {
         />
       )}
 
-      <section className="mx-auto max-w-3xl">
-        <Link href="/host" className="text-sm font-bold text-purple-600">
+      <HostHeader
+        supabase={supabase}
+        profile={profile}
+        hostCanAct={Boolean(isApprovedHost(profile))}
+        onProfileChange={setProfile}
+        onOpenAuth={openAuthModal}
+      />
+
+      <section className="mx-auto max-w-3xl px-6 pb-12 pt-8">
+        <button
+          onClick={() => router.push("/host")}
+          className="text-sm font-bold text-purple-600"
+        >
           ← 호스트 홈으로
-        </Link>
+        </button>
 
         <div className="mt-5 rounded-3xl bg-white p-6 shadow-sm">
           <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -175,21 +223,56 @@ function HostApplicantsContent() {
                 APPLICANTS
               </p>
               <h1 className="text-2xl font-black">
-                {selectedTest
-                  ? `${selectedTest.title} 지원자 확인`
-                  : "전체 지원자 확인"}
+                {selectedTest ? `${selectedTest.title} ` : ""}
+                {viewMode === "new" ? "신규 지원자" : "전체 지원자 확인"}
               </h1>
             </div>
 
-            {testIdFilter && (
-              <button
-                onClick={() => router.push("/host/applicants")}
-                className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50"
-              >
-                전체 지원자 보기
-              </button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {viewMode === "new" ? (
+                <button
+                  onClick={() => setViewMode("all")}
+                  className="rounded-2xl bg-purple-600 px-5 py-3 text-sm font-bold text-white hover:bg-purple-700"
+                >
+                  전체 지원자 확인
+                </button>
+              ) : (
+                <button
+                  onClick={() => setViewMode("new")}
+                  className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                >
+                  신규 지원자만 보기
+                </button>
+              )}
+
+              {testIdFilter && (
+                <button
+                  onClick={() => router.push("/host/applicants")}
+                  className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                >
+                  전체 테스트 보기
+                </button>
+              )}
+            </div>
           </div>
+
+          {viewMode === "all" && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              {(["전체", "대기", "수락", "거절"] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                    statusFilter === status
+                      ? "bg-purple-600 text-white"
+                      : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100"
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          )}
 
           {!profile ? (
             <div className="rounded-2xl bg-gray-50 p-8 text-center">
@@ -205,7 +288,9 @@ function HostApplicantsContent() {
             </div>
           ) : visibleApplications.length === 0 ? (
             <div className="rounded-2xl bg-gray-50 p-6 text-center text-gray-500">
-              {selectedTest
+              {viewMode === "new"
+                ? "새로 들어온 지원이 없습니다."
+                : selectedTest
                 ? "이 테스트에는 아직 지원자가 없습니다."
                 : "아직 지원자가 없습니다."}
             </div>

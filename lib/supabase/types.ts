@@ -84,6 +84,7 @@ export type ApplicationRow = {
   phone: string | null;
   message: string | null;
   status: ApplicationStatus;
+  viewed_by_host: boolean;
   created_at: string;
 };
 

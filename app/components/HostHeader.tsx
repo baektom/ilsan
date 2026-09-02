@@ -117,7 +117,7 @@ export default function HostHeader({
             aria-label="메뉴 닫기 배경"
           />
 
-          <aside className="absolute right-0 top-0 h-full w-[320px] overflow-y-auto bg-white p-6 shadow-2xl">
+          <aside className="absolute right-0 top-0 h-full w-full max-w-[320px] overflow-y-auto bg-white p-6 shadow-2xl">
             <div className="mb-8 flex items-center justify-between">
               <h2 className="text-xl font-bold">메뉴</h2>
 
